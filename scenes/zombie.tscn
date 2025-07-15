@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://6tjbc4uq4hbi"]
+
+[ext_resource type="Script" path="res://script/zombie.gd" id="1_w1hw8"]
+[ext_resource type="Texture2D" uid="uid://o5x4ru7vcc0o" path="res://icon.svg" id="2_wby77"]
+
+[node name="Zombie" type="Node2D"]
+script = ExtResource("1_w1hw8")
+
+[node name="Visuals" type="Node2D" parent="."]
+
+[node name="Sprite2D" type="Sprite2D" parent="Visuals"]
+texture = ExtResource("2_wby77")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+
+[node name="CollisionArea" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="CollisionArea"]
