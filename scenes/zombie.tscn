@@ -1,7 +1,10 @@
-[gd_scene load_steps=3 format=3 uid="uid://6tjbc4uq4hbi"]
+[gd_scene load_steps=4 format=3 uid="uid://6tjbc4uq4hbi"]
 
 [ext_resource type="Script" path="res://script/zombie.gd" id="1_w1hw8"]
-[ext_resource type="Texture2D" uid="uid://o5x4ru7vcc0o" path="res://icon.svg" id="2_wby77"]
+[ext_resource type="Texture2D" uid="uid://b5bctfvl1jiqd" path="res://assets/Character_animation/monsters_idle/skeleton2/v1/skeleton2_v1_1.png" id="2_vgknw"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_qqy2d"]
+radius = 26.3059
 
 [node name="Zombie" type="Node2D"]
 script = ExtResource("1_w1hw8")
@@ -9,10 +12,12 @@ script = ExtResource("1_w1hw8")
 [node name="Visuals" type="Node2D" parent="."]
 
 [node name="Sprite2D" type="Sprite2D" parent="Visuals"]
-texture = ExtResource("2_wby77")
+scale = Vector2(4, 4)
+texture = ExtResource("2_vgknw")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 
 [node name="CollisionArea" type="Area2D" parent="."]
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="CollisionArea"]
+shape = SubResource("CircleShape2D_qqy2d")

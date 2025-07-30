@@ -23,8 +23,12 @@ func move_object(obj, from_pos: Vector2i, to_pos: Vector2i):
 	remove_object_from(from_pos)
 	register_object(obj, to_pos)
 
-func world_to_grid_pos(world_pos: Vector2) -> Vector2i:
-	return ground_layer.local_to_map(world_pos)
+# Esta função agora converte corretamente uma posição GLOBAL para uma coordenada de grade
+func global_world_to_grid_pos(global_pos: Vector2) -> Vector2i:
+	# 1. Converte a posição global do mundo para a posição local do TileMapLayer
+	var local_pos = ground_layer.to_local(global_pos)
+	# 2. Converte a posição local para uma coordenada da grade
+	return ground_layer.local_to_map(local_pos)
 
 func is_cell_valid_and_empty(grid_pos: Vector2i) -> bool:
 	var used_rect = ground_layer.get_used_rect()
@@ -40,7 +44,7 @@ func is_cell_valid_and_empty(grid_pos: Vector2i) -> bool:
 	return true
 
 func get_valid_moves(grid_pos: Vector2i, move_type: String) -> Array[Vector2i]:
-	var valid_moves = []
+	var valid_moves: Array[Vector2i] = []
 	
 	match move_type:
 		"QUEEN":

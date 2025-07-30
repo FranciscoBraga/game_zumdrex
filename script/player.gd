@@ -18,6 +18,7 @@ var max_action_points: int = 2
 
 func _ready():
 	grid_pos = start_grid_pos
+	print("player:",grid_pos)
 	grid_manager.register_object(self, grid_pos)
 	
 	# Conecta ao sinal de início de turno do jogador
@@ -28,6 +29,7 @@ func on_turn_started():
 	print("Jogador tem pontos de ação."%action_points)
 
 func move_to_tile(target_grid_pos: Vector2i):
+	print("move_to_tile")
 	if action_points >= 1:
 		var valid_moves = grid_manager.get_valid_moves(grid_pos, "QUEEN")
 		if target_grid_pos in valid_moves:
@@ -58,7 +60,7 @@ func _unhandled_input(event):
 		return
 		
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var target_grid_pos = grid_manager.world_to_grid_pos(get_global_mouse_position())
+		var target_grid_pos = grid_manager.global_world_to_grid_pos(get_global_mouse_position())
 		move_to_tile(target_grid_pos)
 	
 	# Para passar o turno manualmente

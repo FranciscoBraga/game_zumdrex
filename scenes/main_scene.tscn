@@ -34,7 +34,9 @@ ground_layer = NodePath("../TileMap/GroundLayer")
 script = ExtResource("2_mlgj7")
 
 [node name="Zombie" parent="." instance=ExtResource("3_kxb12")]
-position = Vector2(372, 178)
+position = Vector2(352, 160)
+start_grid_pos = Vector2i(20, 6)
 
 [node name="Player" parent="." instance=ExtResource("4_d6whj")]
-position = Vector2(700, 436)
+position = Vector2(752, 472)
+start_grid_pos = Vector2i(44, 26)

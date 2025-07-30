@@ -14,6 +14,7 @@ var grid_pos: Vector2i
 
 func _ready():
 	grid_pos = start_grid_pos
+	print("zombie:",grid_pos)
 	grid_manager.register_object(self, grid_pos)
 	turn_manager.enemy_turn_started.connect(on_enemy_turn_started)
 
