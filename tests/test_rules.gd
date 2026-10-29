@@ -457,6 +457,16 @@ func danger(b, p: Vector2i) -> int:
 	return n
 
 
+# Casa da chave, se a fase tem porta trancada e a chave está no chão.
+func key_pos(b) -> Vector2i:
+	if not b.decor.values().has("d"):
+		return Vector2i(-1, -1)
+	for p in b.items:
+		if b.items[p] == "k":
+			return p
+	return Vector2i(-1, -1)
+
+
 func actions(b) -> Array:
 	var out: Array = [{"kind": "wait", "score": -2.0}]
 	for s in b.survivors():
@@ -466,6 +476,10 @@ func actions(b) -> Array:
 			if s["main"] and not babies.is_empty():
 				var bp: Vector2i = babies[0]["pos"]
 				score = (cheb(s["pos"], bp) - cheb(to, bp)) * 3.0 - danger(b, to) * 6.0
+			var key := key_pos(b)
+			if s["main"] and babies.is_empty() and key.x >= 0 and not b.backpack.has("k"):
+				# porta trancada: primeiro vai buscar a chave
+				score = (cheb(s["pos"], key) - cheb(to, key)) * 3.0 - danger(b, to) * 6.0
 			if b.items.has(to) and s["main"]:
 				score += 3.0
 			if to.y == 0:

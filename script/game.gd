@@ -19,7 +19,10 @@ const TEX_ITEM := {
 	"a": preload("res://assets/items and trap_animation/mini_box_1/mini_box_1_1.png"),
 }
 
-const BOARD_AREA := Rect2(50, 72, 610, 610)
+# tabuleiro no centro, com a altura toda; painéis estreitos dos lados
+const BOARD_AREA := Rect2(282, 36, 716, 648)
+const LEFT_PANEL := Rect2(10, 10, 240, 700)
+const RIGHT_PANEL := Rect2(1030, 10, 240, 700)
 const MOVE_TIME := 0.18
 const NO_CELL := Vector2i(-99, -99)
 # cores do tabuleiro de xadrez
@@ -49,6 +52,8 @@ const RANGED_COLOR := {
 	"Q": Color(1.0, 0.4, 0.75), "F": Color(1.0, 0.8, 0.3), "A": Color(0.85, 0.7, 0.5),
 }
 var ui := {}
+var overlay_kind := "intro"  # intro | end
+var show_intro := true
 var font: Font
 
 
@@ -61,7 +66,9 @@ func _ready() -> void:
 			level_index = clampi(int(arg.get_slice("=", 1)) - 1, 0, Levels.LEVELS.size() - 1)
 		elif arg.begins_with("--screenshot="):
 			shot_path = arg.get_slice("=", 1)
-	load_level(level_index)
+		elif arg == "--no-intro":
+			show_intro = false
+	load_level(level_index, true)
 	if shot_path != "":
 		_screenshot(shot_path)
 
@@ -77,7 +84,8 @@ func _screenshot(path: String) -> void:
 
 # ---------- fases ----------
 
-func load_level(i: int) -> void:
+# with_intro = mostra o cartão com o objetivo (ao entrar na fase; não ao reiniciar)
+func load_level(i: int, with_intro := false) -> void:
 	level_index = i
 	board = Board.new()
 	board.load_level(Levels.LEVELS[i])
@@ -92,9 +100,12 @@ func load_level(i: int) -> void:
 	mode = "move"
 	busy = false
 	ui["overlay"].visible = false
+	ui["tip"].visible = false
 	_sync_views()
 	_refresh_ui()
 	queue_redraw()
+	if with_intro and show_intro:
+		_show_intro()
 
 
 func grid_to_px(p: Vector2i) -> Vector2:
@@ -121,6 +132,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		set_mode("move")
 	elif event is InputEventKey and event.pressed and not event.echo:
+		if ui["overlay"].visible:  # cartão aberto: só Enter (ou Esc no objetivo) fecha
+			if event.keycode in [KEY_ENTER, KEY_KP_ENTER] or (event.keycode == KEY_ESCAPE and overlay_kind == "intro"):
+				_on_overlay_button()
+			return
 		match event.keycode:
 			KEY_1, KEY_A:
 				set_mode("move")
@@ -332,6 +347,7 @@ func _do_shoot(dir: Vector2i) -> void:
 
 func _zombie_phase() -> void:
 	busy = true
+	ui["tip"].visible = false
 	_refresh_ui()
 	queue_redraw()
 	if board.status == "playing":
@@ -512,8 +528,8 @@ func _draw() -> void:
 		var num := str(board.size.y - y)
 		var cy: float = origin.y + (y + 0.5) * tile + 5
 		draw_string(font, Vector2(board_rect.position.x - fw * 0.7, cy), num, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, FRAME_EDGE.lightened(0.4))
-	draw_string(font, Vector2(origin.x, board_rect.position.y - fw - 12), "SAÍDA  ↑  leve todos até a linha de cima",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.5, 0.95, 0.55))
+	draw_string(font, Vector2(board_rect.position.x, board_rect.position.y - fw * 0.3), "↑  SAÍDA  ↑",
+		HORIZONTAL_ALIGNMENT_CENTER, board_rect.size.x, 14, Color(0.5, 0.95, 0.55))
 	for y in board.size.y:
 		for x in board.size.x:
 			var p := Vector2i(x, y)
@@ -730,65 +746,110 @@ func _draw_highlights() -> void:
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
-	var panel := PanelContainer.new()
-	panel.position = Vector2(700, 20)
-	panel.custom_minimum_size = Vector2(560, 680)
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.13, 0.12, 0.14)
+	sb.bg_color = Color(0.13, 0.12, 0.14, 0.92)
 	sb.border_color = Color(0.35, 0.3, 0.25)
 	sb.set_border_width_all(2)
-	sb.set_content_margin_all(16)
+	sb.set_content_margin_all(12)
 	sb.set_corner_radius_all(6)
-	panel.add_theme_stylebox_override("panel", sb)
-	layer.add_child(panel)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 10)
-	panel.add_child(vb)
 
-	ui["title"] = _label(vb, "ZUMDREX — Xadrez Zumbi", 26, Color(0.6, 1.0, 0.5))
-	ui["level"] = _label(vb, "", 18, Color(1, 0.85, 0.5))
-	ui["intro"] = _label(vb, "", 14, Color(0.85, 0.85, 0.85))
-	vb.add_child(HSeparator.new())
-	ui["stats"] = _label(vb, "", 16, Color.WHITE)
-	ui["selected"] = _label(vb, "", 14, Color(0.8, 0.9, 1.0))
-
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 8)
-	vb.add_child(hb)
-	ui["btn_move"] = _button(hb, "1  Andar", func(): set_mode("move"))
-	ui["btn_shoot"] = _button(hb, "2  Atirar", func(): set_mode("shoot"))
-	ui["btn_wait"] = _button(hb, "3  Esperar", _on_wait)
-	_button(hb, "R  Reiniciar", func(): load_level(level_index))
-	ui["hint"] = _label(vb, "", 14, Color(1, 0.9, 0.4))
-
-	vb.add_child(HSeparator.new())
-	ui["bag_label"] = _label(vb, "Mochila", 16, Color(0.9, 0.8, 0.6))
-	ui["bag"] = HBoxContainer.new()
-	ui["bag"].add_theme_constant_override("separation", 6)
-	vb.add_child(ui["bag"])
-
-	vb.add_child(HSeparator.new())
-	ui["log"] = _label(vb, "", 13, Color(0.75, 0.75, 0.75))
+	# --- painel esquerdo: situação do jogo ---
+	var left := _panel(layer, sb, LEFT_PANEL)
+	ui["level"] = _label(left, "", 17, Color(1, 0.85, 0.5))
+	ui["turn"] = _label(left, "", 14, Color(0.75, 0.75, 0.8))
+	left.add_child(HSeparator.new())
+	ui["hp"] = _label(left, "", 18, Color(1, 0.55, 0.55))
+	ui["hp_bar"] = ProgressBar.new()
+	ui["hp_bar"].show_percentage = false
+	ui["hp_bar"].custom_minimum_size = Vector2(0, 10)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = Color(0.85, 0.25, 0.25)
+	ui["hp_bar"].add_theme_stylebox_override("fill", fill)
+	left.add_child(ui["hp_bar"])
+	ui["weapon"] = _label(left, "", 14, Color.WHITE)
+	ui["gear"] = _label(left, "", 13, Color(0.6, 0.9, 1.0))
+	left.add_child(HSeparator.new())
+	ui["selected"] = _label(left, "", 13, Color(0.8, 0.9, 1.0))
+	ui["hint"] = _label(left, "", 13, Color(1, 0.9, 0.4))
+	left.add_child(HSeparator.new())
+	ui["log"] = _label(left, "", 12, Color(0.7, 0.7, 0.7))
 	ui["log"].size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_label(vb, "Clique numa peça sua para selecionar. Passe o mouse num zumbi para ver onde ele morde. Tab troca de peça.", 12, Color(0.55, 0.55, 0.6))
+	ui["log"].vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 
-	# janela de fim de fase
-	var ov := PanelContainer.new()
-	var osb := sb.duplicate()
-	osb.bg_color = Color(0.05, 0.05, 0.07, 0.95)
-	osb.set_content_margin_all(28)
-	ov.add_theme_stylebox_override("panel", osb)
-	ov.position = Vector2(150, 260)
-	ov.custom_minimum_size = Vector2(400, 0)
+	# --- painel direito: ações e mochila ---
+	var right := _panel(layer, sb, RIGHT_PANEL)
+	ui["btn_move"] = _button(right, "1  Andar", func(): set_mode("move"))
+	ui["btn_shoot"] = _button(right, "2  Atirar", func(): set_mode("shoot"))
+	ui["btn_wait"] = _button(right, "3  Esperar", _on_wait)
+	_button(right, "R  Reiniciar", func(): load_level(level_index))
+	_button(right, "?  Objetivo da fase", _show_intro)
+	right.add_child(HSeparator.new())
+	ui["bag_label"] = _label(right, "Mochila", 15, Color(0.9, 0.8, 0.6))
+	ui["bag"] = GridContainer.new()
+	ui["bag"].columns = 3
+	ui["bag"].add_theme_constant_override("h_separation", 6)
+	ui["bag"].add_theme_constant_override("v_separation", 6)
+	right.add_child(ui["bag"])
+	var spacer := Control.new()
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	right.add_child(spacer)
+	_label(right, "Clique numa peça para selecionar. Tab troca de peça. Passe o mouse numa peça para ver detalhes.", 11, Color(0.55, 0.55, 0.6))
+
+	# --- balão de informações perto do mouse ---
+	var tip := PanelContainer.new()
+	var tsb := sb.duplicate()
+	tsb.bg_color = Color(0.05, 0.05, 0.07, 0.94)
+	tsb.set_content_margin_all(8)
+	tip.add_theme_stylebox_override("panel", tsb)
+	tip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tip.custom_minimum_size = Vector2(260, 0)
+	layer.add_child(tip)
+	ui["tip_text"] = _label(tip, "", 13, Color.WHITE)
+	ui["tip_text"].custom_minimum_size.x = 244
+	ui["tip"] = tip
+	tip.visible = false
+
+	# --- cartão no centro: objetivo da fase e fim de fase ---
+	var ov := Control.new()
+	ov.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.add_child(ov)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.55)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ov.add_child(dim)  # bloqueia cliques no tabuleiro enquanto o cartão está aberto
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ov.add_child(center)
+	var card := PanelContainer.new()
+	var osb := sb.duplicate()
+	osb.bg_color = Color(0.07, 0.07, 0.09, 0.98)
+	osb.set_content_margin_all(28)
+	card.add_theme_stylebox_override("panel", osb)
+	card.custom_minimum_size = Vector2(520, 0)
+	center.add_child(card)
 	var ovb := VBoxContainer.new()
 	ovb.add_theme_constant_override("separation", 14)
-	ov.add_child(ovb)
+	card.add_child(ovb)
 	ui["ov_title"] = _label(ovb, "", 28, Color.WHITE)
 	ui["ov_text"] = _label(ovb, "", 16, Color(0.85, 0.85, 0.85))
 	ui["ov_button"] = _button(ovb, "", _on_overlay_button)
+	ui["ov_button"].alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ui["overlay"] = ov
 	ov.visible = false
+
+
+func _panel(layer: Node, sb: StyleBox, rect: Rect2) -> VBoxContainer:
+	var panel := PanelContainer.new()
+	panel.position = rect.position
+	panel.size = rect.size
+	panel.custom_minimum_size = rect.size
+	panel.add_theme_stylebox_override("panel", sb)
+	layer.add_child(panel)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 8)
+	panel.add_child(vb)
+	return vb
 
 
 func _label(parent: Node, text: String, size: int, color: Color) -> Label:
@@ -807,6 +868,7 @@ func _button(parent: Node, text: String, cb: Callable) -> Button:
 	b.text = text
 	b.focus_mode = Control.FOCUS_NONE
 	b.custom_minimum_size = Vector2(0, 36)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	b.pressed.connect(cb)
 	parent.add_child(b)
 	return b
@@ -814,39 +876,44 @@ func _button(parent: Node, text: String, cb: Callable) -> Button:
 
 func _refresh_ui() -> void:
 	var lv: Dictionary = Levels.LEVELS[level_index]
-	ui["level"].text = "Fase %d/%d: %s   •   Rodada %d" % [level_index + 1, Levels.LEVELS.size(), lv["name"], board.turn]
-	ui["intro"].text = lv["intro"]
+	ui["level"].text = "Fase %d/%d\n%s" % [level_index + 1, Levels.LEVELS.size(), lv["name"]]
+	ui["turn"].text = "Rodada %d" % board.turn
 	var m: Dictionary = board.main_unit()
 	var w: Dictionary = board.weapon_info()
-	var hp_txt := "fora do tabuleiro" if m.is_empty() else "%d/%d" % [maxi(m["hp"], 0), m["max_hp"]]
-	ui["stats"].text = "Vida: %s     Arma: %s (alcance %d, dano %d%s)     Munição: %d" % [
-		hp_txt, w["name"], w["range"], w["dmg"], ", atravessa" if w["pierce"] else "", board.ammo]
-	var gear: Array = board.equipped.map(func(it): return Board.ITEMS[it]["name"])
+	if m.is_empty():
+		ui["hp"].text = "Sobrevivente fora do tabuleiro"
+		ui["hp_bar"].value = 0
+	else:
+		ui["hp"].text = "♥ %d/%d" % [maxi(m["hp"], 0), m["max_hp"]]
+		ui["hp_bar"].max_value = m["max_hp"]
+		ui["hp_bar"].value = maxi(m["hp"], 0)
+	ui["weapon"].text = "%s — alcance %d, dano %d%s\nMunição: %d" % [
+		w["name"], w["range"], w["dmg"], ", atravessa" if w["pierce"] else "", board.ammo]
+	var gear: Array = board.equipped.map(func(it): return "• " + Board.ITEMS[it]["name"])
 	if board.calm > 0:
-		gear.append("bebê quieto por %d rodada(s)" % board.calm)
-	if not gear.is_empty():
-		ui["stats"].text += "\nEquipado: " + ", ".join(gear)
+		gear.append("• bebê quieto por %d rodada(s)" % board.calm)
+	ui["gear"].text = "\n".join(gear)
+	ui["gear"].visible = not gear.is_empty()
 	var sel: Dictionary = board.unit_by_id(selected_id)
-	var move_names := {"king": "1 casa em qualquer direção (rei)", "wazir": "1 casa reta", "knight": "em L, pulando obstáculos (cavalo)"}
+	var move_names := {"king": "1 casa em qualquer direção", "wazir": "1 casa reta", "knight": "em L, pulando obstáculos"}
 	var walk_txt: String = move_names[sel["moves"]] if not sel.is_empty() else ""
 	if not sel.is_empty() and sel["main"] and board.reach > 1:
 		walk_txt = "até %d casas em qualquer direção" % board.reach
-	ui["selected"].text = "" if sel.is_empty() else "Selecionado: %s — vida %d/%d — anda %s" % [
+	ui["selected"].text = "" if sel.is_empty() else "Selecionado: %s\nvida %d/%d — anda %s" % [
 		sel["name"], sel["hp"], sel["max_hp"], walk_txt]
-	ui["btn_move"].button_pressed = false
 	ui["btn_move"].modulate = Color(0.6, 1, 0.6) if mode == "move" else Color.WHITE
 	ui["btn_shoot"].modulate = Color(1, 0.6, 0.6) if mode == "shoot" else Color.WHITE
 	ui["btn_shoot"].disabled = busy or m.is_empty() or board.ammo <= 0
 	if busy:
 		ui["hint"].text = "Os zumbis estão se movendo..."
 	elif mode == "shoot":
-		ui["hint"].text = "Clique numa casa vermelha para atirar naquela direção. (botão direito cancela)"
+		ui["hint"].text = "Clique numa casa vermelha para atirar. Botão direito cancela."
 	else:
-		ui["hint"].text = "Sua vez! Clique numa casa com bolinha verde (ou use as setas) para andar. Ou atire, espere ou use um item."
+		ui["hint"].text = "Sua vez! Ande (bolinha verde), atire, espere ou use um item."
 	# mochila
 	for c in ui["bag"].get_children():
 		c.queue_free()
-	ui["bag_label"].text = "Mochila (%d/%d) — clique num item para usar" % [board.backpack.size(), board.bag_capacity]
+	ui["bag_label"].text = "Mochila (%d/%d)" % [board.backpack.size(), board.bag_capacity]
 	for i in board.bag_capacity:
 		var b := Button.new()
 		b.focus_mode = Control.FOCUS_NONE
@@ -862,21 +929,27 @@ func _refresh_ui() -> void:
 		else:
 			b.disabled = true
 		ui["bag"].add_child(b)
-	var lines: Array = board.log_lines.slice(maxi(0, board.log_lines.size() - 8))
+	var lines: Array = board.log_lines.slice(maxi(0, board.log_lines.size() - 5))
 	ui["log"].text = "\n".join(lines)
 
 
+# Balão perto do mouse com a vida e os poderes da peça.
 func _show_hover_info() -> void:
-	if busy or board.status != "playing" or not board.in_bounds(hover):
+	ui["tip"].visible = false
+	if busy or board.status != "playing" or not board.in_bounds(hover) or ui["overlay"].visible:
 		return
 	var u: Dictionary = board.unit_at(hover)
 	if u.is_empty():
+		var it: String = board.items.get(hover, "")
+		if it != "":
+			var d: Dictionary = Board.ITEMS[it]
+			_show_tip(d["name"] + (": " + d["desc"] if d.has("desc") else ""))
 		return
 	if u["team"] == "s":
-		ui["hint"].text = "%s — vida %d/%d. Com vida 0 morre e vira zumbi." % [u["name"], u["hp"], u["max_hp"]]
+		_show_tip("%s — vida %d/%d. Com vida 0 morre e vira zumbi." % [u["name"], u["hp"], u["max_hp"]])
 		return
 	if u.get("hidden", false):
-		ui["hint"].text = "Tem alguma coisa escondida ali... chegue a 2 casas e ela acorda."
+		_show_tip("Tem alguma coisa escondida ali... chegue a 2 casas e ela acorda.")
 		return
 	var how := {"king": "1 casa em qualquer direção", "wazir": "1 casa reta", "knight": "em L",
 		"ferz": "1 casa na diagonal", "pawn": "1 casa para baixo e morde na diagonal da frente",
@@ -888,36 +961,69 @@ func _show_hover_info() -> void:
 		for k in names:
 			if u["moves"].begins_with(k):
 				walk = "até %d casas %s" % [board.move_range(u["moves"]), names[k]]
-	var txt := "%s — vida %d/%d — anda %s%s. Laranja = mordida." % [u["name"], u["hp"], u["max_hp"], walk, extra]
+	var txt := "%s — vida %d/%d\nAnda %s%s. Laranja = mordida." % [u["name"], u["hp"], u["max_hp"], walk, extra]
 	var r: Dictionary = u.get("ranged", {})
 	if not r.is_empty():
-		txt += " Roxo = ataque de longe (%d casas%s)." % [r["range"], ", atravessa" if r.get("pierce", false) else ""]
+		txt += "\nRoxo = ataque de longe (%d casas%s)." % [r["range"], ", atravessa" if r.get("pierce", false) else ""]
 	var powers := {"acid": "deixa ácido no chão", "drops": "larga munição ao morrer",
 		"revive": "levanta zumbis abatidos", "aura": "zumbis perto dela agem 2 vezes",
 		"calls": "o grito chama os zumbis", "coward": "foge se você chega perto",
 		"explodes": "explode em volta (até quando morre)"}
 	for k in powers:
 		if u.has(k):
-			txt += " Poder: " + powers[k] + "."
-	ui["hint"].text = txt
+			txt += "\nPoder: " + powers[k] + "."
+	_show_tip(txt)
+
+
+func _show_tip(txt: String) -> void:
+	var tip: PanelContainer = ui["tip"]
+	ui["tip_text"].text = txt
+	tip.reset_size()
+	tip.visible = true
+	# ao lado da casa, sem sair da tela
+	var cell_r := Rect2(origin + Vector2(hover) * tile, Vector2(tile, tile))
+	var pos := Vector2(cell_r.end.x + 8, cell_r.position.y)
+	if pos.x + tip.size.x > 1270:
+		pos.x = cell_r.position.x - tip.size.x - 8
+	pos.y = clampf(pos.y, 8, 712 - tip.size.y)
+	tip.position = pos
 
 
 func _flash_hint(msg: String) -> void:
 	ui["hint"].text = msg
 
 
+# Cartão com o objetivo da fase (aparece ao entrar na fase e no botão "?").
+func _show_intro() -> void:
+	if busy:
+		return
+	var lv: Dictionary = Levels.LEVELS[level_index]
+	overlay_kind = "intro"
+	ui["ov_title"].text = "Fase %d: %s" % [level_index + 1, lv["name"]]
+	ui["ov_title"].add_theme_color_override("font_color", Color(1, 0.85, 0.5))
+	ui["ov_text"].text = lv["intro"]
+	ui["ov_button"].text = "Começar  (Enter)"
+	ui["tip"].visible = false
+	ui["overlay"].visible = true
+
+
 func _show_end() -> void:
 	var won: bool = board.status == "won"
 	var last: bool = level_index == Levels.LEVELS.size() - 1
+	overlay_kind = "end"
 	ui["ov_title"].text = ("Fase concluída!" if not last else "Você venceu o jogo!") if won else "Fim de jogo"
 	ui["ov_title"].add_theme_color_override("font_color", Color(0.5, 1, 0.5) if won else Color(1, 0.4, 0.4))
 	ui["ov_text"].text = board.end_reason
 	ui["ov_button"].text = ("Próxima fase  (Enter)" if not last else "Jogar de novo  (Enter)") if won else "Tentar de novo  (Enter)"
+	ui["tip"].visible = false
 	ui["overlay"].visible = true
 
 
 func _on_overlay_button() -> void:
+	if overlay_kind == "intro":
+		ui["overlay"].visible = false
+		return
 	if board.status == "won":
-		load_level((level_index + 1) % Levels.LEVELS.size())
+		load_level((level_index + 1) % Levels.LEVELS.size(), true)
 	else:
 		load_level(level_index)

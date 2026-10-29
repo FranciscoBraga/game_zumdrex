@@ -38,7 +38,7 @@ Legenda de status: ✅ já existe no jogo (fase de `script/levels.gd`) · 🔜 p
 
 | # | Nome | Objetivo | Personagens | Zumbis | Regra especial | Desafio ⭐ | Status |
 |---|---|---|---|---|---|---|---|
-| 13 | **Delegacia** | Atravessar a delegacia | Sobrevivente | Cuspidor, Policial, Soldado | Primeiros zumbis que atacam de longe | Pegar a munição de todos os Policiais | ✅ fase 7 |
+| 13 | **Delegacia** | Atravessar a delegacia | Sobrevivente | Cuspidor, Policial | Primeiros zumbis que atacam de longe | Pegar a munição de todos os Policiais | ✅ fase 7 |
 | 14 | **Quartel dos Bombeiros** | Resgatar a Júlia | Sobrevivente, Júlia | Inchado, Comum | Júlia quebra entulho com o machado | Nenhum Inchado explode perto do grupo | 🔜 |
 | 15 | **Carrinho na Avenida** | Empurrar o Lucas pela avenida | Júlia, Lucas, Thor | Policial, Corredor | O carrinho só anda em linha reta, empurrado por alguém | O carrinho nunca fica na mira de um zumbi | 🔜 |
 | 16 | **A Biblioteca** | Resgatar o Otávio e o Kiwi | Sobrevivente, Otávio, Kiwi | Arqueiro, Rastejante | Otávio mostra onde estão os Rastejantes escondidos | Otávio não perde vida | 🔜 |
@@ -49,7 +49,7 @@ Legenda de status: ✅ já existe no jogo (fase de `script/levels.gd`) · 🔜 p
 
 | # | Nome | Objetivo | Personagens | Zumbis | Regra especial | Desafio ⭐ | Status |
 |---|---|---|---|---|---|---|---|
-| 19 | **Cemitério** | Atravessar o cemitério | Sobrevivente | Necromante, Arqueiro, Inchado | O Necromante levanta os zumbis abatidos | Derrubar o Necromante primeiro | ✅ fase 8 |
+| 19 | **Cemitério** | Atravessar o cemitério | Sobrevivente | Soldado, Necromante, Arqueiro, Inchado | O Necromante levanta os zumbis abatidos | Derrubar o Necromante primeiro | ✅ fase 8 |
 | 20 | **Noite Sem Luz** | Achar a saída no escuro | Sobrevivente, Júlia | Rastejante, Corredor | Só se vê até 2 casas em volta do grupo | Achar as 2 lanternas | 🔜 |
 | 21 | **Hospital** | Levar 3 pacientes até a ambulância | Sobrevivente, Marina, Otávio | Cuspidor, Tanque | Pacientes andam 1 casa a cada 2 rodadas; Marina cura | Os 3 pacientes saem | 🔜 |
 | 22 | **Ponte Quebrada** | Proteger o Rafael enquanto ele conserta a ponte | Sobrevivente, Rafael, Thor | Trotador, Saltador, Arqueiro | Rafael fica parado 4 rodadas consertando | Rafael não é atingido | 🔜 |

@@ -31,7 +31,7 @@ const LEVELS := [
 	},
 	{
 		"name": "Rua Bloqueada",
-		"intro": "A passagem está trancada. Pegue a chave para abrir a porta. Atirar gasta munição e a rodada. Pegue o ARCO: ele acerta até 4 casas e a flecha cai no chão; passe por cima dela para recuperar. A FITA VERMELHA reduz em 10% o dano das mordidas.",
+		"intro": "A porta está trancada: pegue a CHAVE e passe pela porta. Para atirar, aperte 2 e clique numa casa vermelha. Itens: ARCO (acerta até 4 casas; pegue a flecha de volta no chão) e FITA VERMELHA (-10% de dano).",
 		"backpack": 3, "weapon": "pistol", "ammo": 3,
 		"map": [
 			"..Z...",
@@ -102,14 +102,14 @@ const LEVELS := [
 	},
 	{
 		"name": "Delegacia",
-		"intro": "Agora eles atacam DE LONGE! Passe o mouse num zumbi: as casas roxas mostram até onde ele acerta. Móveis, paredes e outros zumbis bloqueiam os tiros. O Cuspidor deixa ácido no chão, o Policial larga munição e o Soldado atira atravessando, mas precisa recarregar. A MOCHILA MILITAR tem 50% mais espaço.",
+		"intro": "Agora eles atacam DE LONGE! Passe o mouse num zumbi para ver o alcance em roxo. Móveis e paredes bloqueiam os tiros. O Cuspidor deixa ácido no chão; o Policial larga munição ao morrer. Item: MOCHILA MILITAR (+50% de espaço).",
 		"backpack": 4, "weapon": "pistol", "ammo": 6,
 		"map": [
 			"........",
-			"..F.....",
-			".XX..XX.",
-			"....S...",
 			"O.......",
+			".XX..XX.",
+			".......S",
+			"........",
 			".M..M..M",
 			"y.h..a..",
 			"P...r...",
@@ -117,10 +117,10 @@ const LEVELS := [
 	},
 	{
 		"name": "Cemitério",
-		"intro": "O Necromante levanta os zumbis abatidos perto dele: derrube-o primeiro! O Arqueiro foge quando você chega perto. O Inchado explode e fere quem estiver em volta, até zumbis. Pegue o arco! O TÊNIS BRANCO deixa você andar até 3 casas.",
-		"backpack": 4, "weapon": "pistol", "ammo": 5,
+		"intro": "O Necromante levanta os zumbis abatidos: derrube-o primeiro! O Arqueiro foge quando você chega perto, o Inchado explode e o Soldado atira atravessando, mas precisa recarregar. Item: TÊNIS BRANCO (anda até 3 casas).",
+		"backpack": 4, "weapon": "pistol", "ammo": 4,
 		"map": [
-			"........",
+			".......F",
 			"..A..J..",
 			".X....X.",
 			"...Z....",

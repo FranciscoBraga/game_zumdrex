@@ -40,8 +40,8 @@ Legenda de status: ✅ no jogo · 🔜 planejado
 - Fases 1–4: Comum, Corredor, Tanque, Saltador.
 - Fase 5 ("Fila de Peões"): Peão Podre e Rastejante.
 - Fase 6 ("Investida"): Trotador e Brutamontes.
-- Fase 7 ("Delegacia"): Policial, Cuspidor e Soldado.
-- Fase 8 ("Cemitério"): Necromante, Arqueiro e Inchado.
+- Fase 7 ("Delegacia"): Policial e Cuspidor.
+- Fase 8 ("Cemitério"): Soldado, Necromante, Arqueiro e Inchado.
 - Fase 9 ("A Rainha"): Rainha Zumbi e Gritador — chefe final.
 
 ## Arte

@@ -25,6 +25,9 @@ func run() -> void:
 	await wait(0.2)
 	var b = game.board
 	check(b.size == Vector2i(4, 4) and game.views.size() == 2, "fase 1 carregada com 2 peças na tela")
+	check(game.ui["overlay"].visible and game.overlay_kind == "intro", "cartão com o objetivo aparece ao entrar na fase")
+	game._on_overlay_button()
+	check(not game.ui["overlay"].visible and b.turn == 1, "fechar o cartão começa a fase")
 
 	# clicar longe escolhe 1 passo naquela direção
 	check(game._step_toward(b.main_unit(), Vector2i(0, 3)) == Vector2i(2, 3), "clique longe anda 1 passo na direção")
@@ -54,6 +57,7 @@ func run() -> void:
 	game._on_overlay_button()
 	await wait(0.2)
 	check(game.level_index == 1 and game.board.size == Vector2i(6, 6), "botão leva para a fase 2")
+	check(game.ui["overlay"].visible and game.overlay_kind == "intro", "fase nova mostra o objetivo")
 
 	# fase 2: tiro de verdade
 	game.load_level(1)
@@ -80,6 +84,7 @@ func run() -> void:
 	game.load_level(0)
 	await wait(0.1)
 	check(game.board.turn == 1 and game.views.size() == 2, "reiniciar recarrega a fase")
+	check(not game.ui["overlay"].visible, "reiniciar não mostra o cartão de novo")
 
 	print("\n%d falhas" % failures)
 	quit(1 if failures > 0 else 0)
