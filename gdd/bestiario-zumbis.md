@@ -5,6 +5,8 @@ Os movimentos usam peças de xadrez. A letra é a usada nos mapas de `script/lev
 
 Legenda de status: ✅ no jogo · 🔜 planejado
 
+"1 de dano" = 1 golpe = **34 de vida** do Sobrevivente (a vida vai de 0 a 100; a Fita Vermelha reduz para 31).
+
 ## Zumbis simples (ataque corpo a corpo, até 3 casas)
 
 | # | Letra | Nome | Movimento | Ataque | Vida | Detalhe | Status |

@@ -34,17 +34,35 @@ O jogador controla um grupo de sobreviventes. Cada um anda como uma peça de xad
 | Rifle | 3 casas | 1 | Atravessa vários zumbis |
 | Arco e Flecha | 4 casas | 1 | A flecha cai no chão e pode ser recuperada |
 
-### 2.3 Mordida e infecção
+### 2.3 Vida, mordida e infecção
 
+- **Todos os personagens têm vida**, numa escala de 0 a 100. O Sobrevivente tem 100; os outros têm 50 ou 70 (veja as tabelas da seção 4).
+- Cada golpe de zumbi tira **34**. O kit médico cura **50** de quem estiver selecionado.
 - Zumbis mordem conforme a peça de xadrez de cada um (ver bestiário).
-- Um sobrevivente com 0 de vida **vira zumbi** e passa a atacar o grupo.
-- Se um personagem obrigatório (ex.: um bebê) for pego, a missão falha.
+- **Com 0 de vida o personagem morre.** Se for o Sobrevivente, a fase acaba. Os outros levantam como zumbi e passam a atacar o grupo.
+- Se um personagem obrigatório (ex.: um bebê) morrer, a missão falha.
 
 ### 2.4 Mochila e itens
 
-- A mochila tem espaço limitado. Chave e kit médico ocupam espaço; munição e armas não.
-- Itens: chave, kit médico, munição (+3), escopeta, rifle, arco, flecha solta (+1).
-- A mochila cresce ao longo dos capítulos.
+A mochila tem espaço limitado. Chave, kit médico e mamadeira ocupam espaço; munição e armas não.
+
+**Itens comuns:** chave, kit médico, munição (+3), escopeta, rifle, arco, flecha solta (+1).
+
+**Equipamentos (novos):** o Sobrevivente veste assim que pega e eles valem até o fim da fase. Do mesmo tipo (boné, mochila, calçado/anel) fica só o melhor; um item pior fica no chão.
+
+| Letra | Item | Efeito | Aparece na fase |
+|---|---|---|---|
+| `1` | **Boné Branco** | +10% de vida (máx. 110) | 1 — Primeiros Passos |
+| `2` | **Boné Verde** | +20% de vida (máx. 120) | 6 — Investida |
+| `3` | **Boné Preto** | +30% de vida (máx. 130) | 9 — A Rainha |
+| `v` | **Fita Vermelha** | Mordidas e tiros tiram 10% a menos (31 em vez de 34) | 2 — Rua Bloqueada |
+| `u` | **Mochila Nível 2** | +30% de espaço (arredonda para cima) | 3 — O Melhor Amigo |
+| `y` | **Mochila Militar** | +50% de espaço (arredonda para cima) | 7 — Delegacia |
+| `o` | **Anel do Poder** | Anda até 2 casas em qualquer direção | 5 — Fila de Peões |
+| `t` | **Tênis Branco** | Anda até 3 casas em qualquer direção | 8 — Cemitério |
+| `m` | **Mamadeira** | Vai na mochila. Usar acalma os bebês por 3 rodadas: o choro para de atrair zumbis | 4 — Bebê Chorão |
+
+Com o Anel ou o Tênis, o Sobrevivente desliza em linha reta ou diagonal, como a dama, e para ao encontrar móveis, paredes, portas ou outras peças.
 
 ### 2.5 Barulho
 
@@ -64,31 +82,31 @@ A habilidade gasta a ação do personagem naquela rodada.
 
 ### 4.1 Protagonista
 
-| Nome | Movimento | Vida | Habilidade | Status |
+| Nome | Movimento | Vida (0–100) | Habilidade | Status |
 |---|---|---|---|---|
-| **Sobrevivente** | 1 casa em qualquer direção (rei) | 3 | Atira e carrega a mochila | ✅ |
+| **Sobrevivente** | 1 casa em qualquer direção (rei); 2 ou 3 com Anel/Tênis | 100 | Atira, carrega a mochila e usa equipamentos | ✅ |
 
 ### 4.2 Pessoas
 
-| Nome | Idade | Profissão | Movimento | Vida | Habilidade |
+| Nome | Idade | Profissão | Movimento | Vida (0–100) | Habilidade |
 |---|---|---|---|---|---|
-| **Marina Costa** | 34 | Enfermeira | Rei (1 casa, qualquer direção) | 2 | Cura 1 de vida de quem está ao lado |
-| **Rafael Duarte** | 41 | Mecânico | Até 2 casas em linha reta (torre curta) | 3 | Abre portas sem chave (2 rodadas) e empurra mesas |
-| **Beatriz Lima** | 19 | Estudante | Até 2 casas na diagonal (bispo curto) | 2 | Chama a Pipoca; anda rápido pelas diagonais |
-| **Otávio Ramos** | 67 | Professor aposentado | 1 casa reta, a cada 2 rodadas | 2 | Mostra onde estão os zumbis escondidos |
-| **Júlia Nogueira** | 28 | Bombeira | Rei | 3 | Machado: quebra entulho e bate em zumbi ao lado (1 de dano) |
-| **Caio Ferreira** | 12 | Estudante (filho da Marina) | Até 2 casas em qualquer linha (dama curta) | 1 | Passa por baixo das mesas |
-| **Helena Souza** | 52 | Cozinheira | 1 casa reta | 2 | Joga comida até 3 casas: zumbis vão até lá por 2 rodadas |
-| **Lucas** | 6 meses | Bebê no carrinho | Não anda sozinho: é empurrado 1 casa reta por quem está atrás | 1 | Chora se ficar 3 rodadas sem ninguém ao lado (atrai zumbis) |
-| **Sofia** | 10 meses | Bebê engatinhando (filha do Rafael) | Engatinha 1 casa reta a cada 2 rodadas, sozinha | 1 | Vai na direção do barulho; para quando alguém a pega no colo |
+| **Marina Costa** | 34 | Enfermeira | Rei (1 casa, qualquer direção) | 70 | Cura 34 de vida de quem está ao lado |
+| **Rafael Duarte** | 41 | Mecânico | Até 2 casas em linha reta (torre curta) | 100 | Abre portas sem chave (2 rodadas) e empurra mesas |
+| **Beatriz Lima** | 19 | Estudante | Até 2 casas na diagonal (bispo curto) | 70 | Chama a Pipoca; anda rápido pelas diagonais |
+| **Otávio Ramos** | 67 | Professor aposentado | 1 casa reta, a cada 2 rodadas | 70 | Mostra onde estão os zumbis escondidos |
+| **Júlia Nogueira** | 28 | Bombeira | Rei | 100 | Machado: quebra entulho e bate em zumbi ao lado (1 de dano) |
+| **Caio Ferreira** | 12 | Estudante (filho da Marina) | Até 2 casas em qualquer linha (dama curta) | 50 | Passa por baixo das mesas |
+| **Helena Souza** | 52 | Cozinheira | 1 casa reta | 70 | Joga comida até 3 casas: zumbis vão até lá por 2 rodadas |
+| **Lucas** | 6 meses | Bebê no carrinho | Não anda sozinho: é empurrado 1 casa reta por quem está atrás | 50 | Chora se ficar 3 rodadas sem ninguém ao lado (atrai zumbis) |
+| **Sofia** | 10 meses | Bebê engatinhando (filha do Rafael) | Engatinha 1 casa reta a cada 2 rodadas, sozinha | 50 | Vai na direção do barulho; para quando alguém a pega no colo |
 
 ### 4.3 Pets
 
-| Nome | Animal | Dono | Movimento | Vida | Habilidade |
+| Nome | Animal | Dono | Movimento | Vida (0–100) | Habilidade |
 |---|---|---|---|---|---|
-| **Thor** | Cachorro pastor-alemão | Rafael | Em L, pula obstáculos (cavalo) | 1 | Late: os zumbis a até 3 casas vão até ele ✅ (movimento já no jogo) |
-| **Pipoca** | Gata laranja | Beatriz | 1 casa na diagonal; sobe em mesas e carros | 1 | Em cima de um móvel, zumbis simples não alcançam |
-| **Kiwi** | Papagaio | Otávio | Voa até 3 casas em qualquer linha, por cima de tudo | 1 | Imita vozes: cria um barulho falso numa casa até 4 casas |
+| **Thor** | Cachorro pastor-alemão | Rafael | Em L, pula obstáculos (cavalo) | 70 | Late: os zumbis a até 3 casas vão até ele ✅ (movimento já no jogo) |
+| **Pipoca** | Gata laranja | Beatriz | 1 casa na diagonal; sobe em mesas e carros | 50 | Em cima de um móvel, zumbis simples não alcançam |
+| **Kiwi** | Papagaio | Otávio | Voa até 3 casas em qualquer linha, por cima de tudo | 50 | Imita vozes: cria um barulho falso numa casa até 4 casas |
 
 ### 4.4 Animações (todos os personagens)
 

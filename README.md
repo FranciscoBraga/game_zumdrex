@@ -9,6 +9,7 @@ Feito em **Godot 4.3** (GDScript).
 - Leve o grupo até a **linha de cima** do tabuleiro (a saída).
 - Cada rodada você faz **uma ação** com um personagem; depois os zumbis agem.
 - Passe o mouse num zumbi para ver até onde ele alcança.
+- Pelas fases há equipamentos: bonés (mais vida), Fita Vermelha (menos dano), mochilas maiores, Anel do Poder e Tênis Branco (andar mais longe) e a Mamadeira (acalma os bebês). A lista está no [GDD](gdd/GDD.md#24-mochila-e-itens).
 
 | Tecla | Ação |
 |---|---|

@@ -265,7 +265,7 @@ func _on_wait() -> void:
 func _on_use_item(index: int) -> void:
 	if busy or board.status != "playing":
 		return
-	if board.use_item(index):
+	if board.use_item(index, selected_id):
 		_sync_views()
 		_zombie_phase()
 	else:
@@ -273,7 +273,9 @@ func _on_use_item(index: int) -> void:
 		if it == "k":
 			_flash_hint("A chave é usada sozinha ao entrar numa porta.")
 		elif it == "h":
-			_flash_hint("Vida já está cheia.")
+			_flash_hint("A vida de quem está selecionado já está cheia. Selecione outro para curar.")
+		elif it == "m":
+			_flash_hint("Não tem bebê para acalmar.")
 
 
 # ---------- ações animadas ----------
@@ -583,12 +585,65 @@ func _draw_cell_content(p: Vector2i, r: Rect2) -> void:
 				HORIZONTAL_ALIGNMENT_LEFT, -1, int(maxf(10, tile * 0.16)), Color.WHITE)
 		elif it == "f":  # flecha caída
 			_draw_arrow(c + Vector2(-0.25, 0.15) * tile, c + Vector2(0.25, -0.15) * tile, 1.0)
+		elif Board.ITEMS[it].has("desc"):  # equipamentos e mamadeira
+			_draw_gear(it, c)
 		else:  # armas: desenho simples
 			var col := Color(0.75, 0.75, 0.8)
 			draw_rect(Rect2(c + Vector2(-0.35, -0.06) * tile, Vector2(0.6, 0.12) * tile), col)
 			draw_rect(Rect2(c + Vector2(0.05, 0.0) * tile, Vector2(0.12, 0.22) * tile), Color(0.45, 0.3, 0.15))
 			draw_string(font, c + Vector2(-0.35, 0.4) * tile, "RIFLE" if it == "r" else "ESCOPETA",
 				HORIZONTAL_ALIGNMENT_LEFT, -1, int(maxf(10, tile * 0.16)), Color.WHITE)
+
+
+# Desenho simples dos equipamentos (bonés, fita, mochilas, anel, tênis, mamadeira).
+func _draw_gear(it: String, c: Vector2) -> void:
+	var t := tile
+	var outline := Color(0.1, 0.08, 0.08)
+	var label := ""
+	match it:
+		"1", "2", "3":  # boné: copa + aba
+			var col: Color = {"1": Color(0.95, 0.95, 0.92), "2": Color(0.25, 0.7, 0.3), "3": Color(0.15, 0.15, 0.17)}[it]
+			draw_circle(c + Vector2(0, 0.02) * t, t * 0.2, outline)
+			draw_circle(c + Vector2(0, 0.02) * t, t * 0.18, col)
+			draw_rect(Rect2(c + Vector2(-0.18, 0.02) * t, Vector2(0.36, 0.1) * t), col)  # base da copa
+			draw_rect(Rect2(c + Vector2(0.0, 0.1) * t, Vector2(0.34, 0.07) * t), col.darkened(0.25))  # aba
+			draw_rect(Rect2(c + Vector2(0.0, 0.1) * t, Vector2(0.34, 0.07) * t), outline, false, 1.0)
+			label = "BONÉ"
+		"v":  # fita vermelha: laço
+			var red := Color(0.9, 0.12, 0.12)
+			draw_colored_polygon(PackedVector2Array([c, c + Vector2(-0.28, -0.16) * t, c + Vector2(-0.28, 0.16) * t]), red)
+			draw_colored_polygon(PackedVector2Array([c, c + Vector2(0.28, -0.16) * t, c + Vector2(0.28, 0.16) * t]), red)
+			draw_line(c, c + Vector2(-0.12, 0.3) * t, red, maxf(3.0, t * 0.06))
+			draw_line(c, c + Vector2(0.12, 0.3) * t, red, maxf(3.0, t * 0.06))
+			draw_circle(c, t * 0.06, red.darkened(0.3))
+			label = "FITA"
+		"u", "y":  # mochila
+			var col := Color(0.55, 0.36, 0.2) if it == "u" else Color(0.3, 0.4, 0.2)
+			var body := Rect2(c + Vector2(-0.2, -0.18) * t, Vector2(0.4, 0.42) * t)
+			draw_rect(body, col)
+			draw_rect(Rect2(body.position, Vector2(body.size.x, body.size.y * 0.35)), col.darkened(0.25))
+			draw_rect(body, outline, false, 1.5)
+			draw_arc(c + Vector2(0, -0.18) * t, t * 0.1, PI, TAU, 8, outline, 2.0)
+			label = "MOCHILA" if it == "u" else "MILITAR"
+		"o":  # anel dourado com pedra
+			draw_arc(c + Vector2(0, 0.04) * t, t * 0.17, 0, TAU, 20, Color(0.95, 0.78, 0.2), maxf(3.0, t * 0.07))
+			draw_circle(c + Vector2(0, -0.14) * t, t * 0.08, Color(0.6, 0.2, 0.9))
+			label = "ANEL"
+		"t":  # tênis branco
+			draw_rect(Rect2(c + Vector2(-0.26, 0.0) * t, Vector2(0.52, 0.14) * t), Color(0.95, 0.95, 0.95))
+			draw_rect(Rect2(c + Vector2(-0.26, -0.16) * t, Vector2(0.24, 0.18) * t), Color(0.95, 0.95, 0.95))
+			draw_rect(Rect2(c + Vector2(-0.26, 0.1) * t, Vector2(0.52, 0.05) * t), Color(0.6, 0.6, 0.65))
+			draw_rect(Rect2(c + Vector2(-0.26, -0.16) * t, Vector2(0.52, 0.31) * t), outline, false, 1.0)
+			label = "TÊNIS"
+		"m":  # mamadeira
+			draw_rect(Rect2(c + Vector2(-0.1, -0.1) * t, Vector2(0.2, 0.32) * t), Color(0.95, 0.97, 1.0))
+			draw_rect(Rect2(c + Vector2(-0.1, 0.06) * t, Vector2(0.2, 0.16) * t), Color(1.0, 0.98, 0.85))
+			draw_rect(Rect2(c + Vector2(-0.11, -0.15) * t, Vector2(0.22, 0.06) * t), Color(0.4, 0.7, 1.0))
+			draw_circle(c + Vector2(0, -0.2) * t, t * 0.05, Color(0.95, 0.75, 0.55))
+			draw_rect(Rect2(c + Vector2(-0.1, -0.1) * t, Vector2(0.2, 0.32) * t), outline, false, 1.0)
+			label = "MAMADEIRA"
+	draw_string(font, c + Vector2(-0.45, 0.44) * t, label, HORIZONTAL_ALIGNMENT_CENTER, t * 0.9,
+		int(maxf(9, t * 0.14)), Color.WHITE)
 
 
 # Linhas vermelhas: zumbis que estão mirando e vão atirar na próxima rodada.
@@ -763,12 +818,21 @@ func _refresh_ui() -> void:
 	ui["intro"].text = lv["intro"]
 	var m: Dictionary = board.main_unit()
 	var w: Dictionary = board.weapon_info()
-	var hp_txt := "fora do tabuleiro" if m.is_empty() else "♥".repeat(m["hp"]) + "♡".repeat(m["max_hp"] - m["hp"])
+	var hp_txt := "fora do tabuleiro" if m.is_empty() else "%d/%d" % [maxi(m["hp"], 0), m["max_hp"]]
 	ui["stats"].text = "Vida: %s     Arma: %s (alcance %d, dano %d%s)     Munição: %d" % [
 		hp_txt, w["name"], w["range"], w["dmg"], ", atravessa" if w["pierce"] else "", board.ammo]
+	var gear: Array = board.equipped.map(func(it): return Board.ITEMS[it]["name"])
+	if board.calm > 0:
+		gear.append("bebê quieto por %d rodada(s)" % board.calm)
+	if not gear.is_empty():
+		ui["stats"].text += "\nEquipado: " + ", ".join(gear)
 	var sel: Dictionary = board.unit_by_id(selected_id)
 	var move_names := {"king": "1 casa em qualquer direção (rei)", "wazir": "1 casa reta", "knight": "em L, pulando obstáculos (cavalo)"}
-	ui["selected"].text = "" if sel.is_empty() else "Selecionado: %s — anda %s" % [sel["name"], move_names[sel["moves"]]]
+	var walk_txt: String = move_names[sel["moves"]] if not sel.is_empty() else ""
+	if not sel.is_empty() and sel["main"] and board.reach > 1:
+		walk_txt = "até %d casas em qualquer direção" % board.reach
+	ui["selected"].text = "" if sel.is_empty() else "Selecionado: %s — vida %d/%d — anda %s" % [
+		sel["name"], sel["hp"], sel["max_hp"], walk_txt]
 	ui["btn_move"].button_pressed = false
 	ui["btn_move"].modulate = Color(0.6, 1, 0.6) if mode == "move" else Color.WHITE
 	ui["btn_shoot"].modulate = Color(1, 0.6, 0.6) if mode == "shoot" else Color.WHITE
@@ -791,6 +855,8 @@ func _refresh_ui() -> void:
 		if i < board.backpack.size():
 			var it: String = board.backpack[i]
 			b.icon = TEX_ITEM.get(it)
+			if b.icon == null:
+				b.text = Board.ITEMS[it]["name"].left(5)
 			b.tooltip_text = Board.ITEMS[it]["name"]
 			b.pressed.connect(_on_use_item.bind(i))
 		else:
@@ -804,7 +870,10 @@ func _show_hover_info() -> void:
 	if busy or board.status != "playing" or not board.in_bounds(hover):
 		return
 	var u: Dictionary = board.unit_at(hover)
-	if u.is_empty() or u["team"] != "z":
+	if u.is_empty():
+		return
+	if u["team"] == "s":
+		ui["hint"].text = "%s — vida %d/%d. Com vida 0 morre e vira zumbi." % [u["name"], u["hp"], u["max_hp"]]
 		return
 	if u.get("hidden", false):
 		ui["hint"].text = "Tem alguma coisa escondida ali... chegue a 2 casas e ela acorda."

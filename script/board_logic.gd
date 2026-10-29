@@ -9,6 +9,12 @@ const DOOR := 3   # porta trancada: abre com chave
 
 const INF := 1 << 20
 
+# Vida do Sobrevivente vai de 0 a 100. Cada "golpe" de zumbi (dmg 1) tira HIT pontos.
+const MAX_HP := 100
+const HIT := 34
+const MEDKIT_HEAL := 50
+const CALM_TURNS := 3  # rodadas que a mamadeira deixa os bebês quietos
+
 const WAZIR_DIRS: Array[Vector2i] = [
 	Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 const KING_DIRS: Array[Vector2i] = [
@@ -30,9 +36,9 @@ const KNIGHT_DIRS: Array[Vector2i] = [
 #   pawn   = 1 casa para baixo; morde na diagonal da frente (peão)
 #   rook2 / rook3 = até 2 / 3 casas em linha reta (torre curta)
 const SURVIVORS := {
-	"P": {"name": "Sobrevivente", "hp": 3, "moves": "king", "main": true},
-	"D": {"name": "Cachorro", "hp": 1, "moves": "knight"},
-	"B": {"name": "Bebê Chorão", "hp": 1, "moves": "wazir", "cries": true, "required": true},
+	"P": {"name": "Sobrevivente", "hp": MAX_HP, "moves": "king", "main": true},
+	"D": {"name": "Cachorro", "hp": 70, "moves": "knight"},
+	"B": {"name": "Bebê Chorão", "hp": 50, "moves": "wazir", "cries": true, "required": true},
 }
 
 # every  = age a cada N turnos (o Tanque é lento)
@@ -85,6 +91,17 @@ const ITEMS := {
 	"r": {"name": "Rifle", "bag": false, "weapon": "rifle"},
 	"b": {"name": "Arco e Flecha", "bag": false, "weapon": "bow"},
 	"f": {"name": "Flecha (+1)", "bag": false},
+	# --- equipamentos: ficam com o Sobrevivente até o fim da fase ---
+	"1": {"name": "Boné Branco", "bag": false, "hat": 10, "desc": "+10% de vida"},
+	"2": {"name": "Boné Verde", "bag": false, "hat": 20, "desc": "+20% de vida"},
+	"3": {"name": "Boné Preto", "bag": false, "hat": 30, "desc": "+30% de vida"},
+	"v": {"name": "Fita Vermelha", "bag": false, "armor": 10, "desc": "-10% de dano das mordidas"},
+	"u": {"name": "Mochila Nível 2", "bag": false, "bag_bonus": 30, "desc": "+30% de espaço na mochila"},
+	"y": {"name": "Mochila Militar", "bag": false, "bag_bonus": 50, "desc": "+50% de espaço na mochila"},
+	"o": {"name": "Anel do Poder", "bag": false, "reach": 2, "desc": "anda até 2 casas em qualquer direção"},
+	"t": {"name": "Tênis Branco", "bag": false, "reach": 3, "desc": "anda até 3 casas em qualquer direção"},
+	# --- consumível ---
+	"m": {"name": "Mamadeira", "bag": true, "desc": "acalma os bebês por 3 rodadas"},
 }
 
 var size := Vector2i.ZERO
@@ -95,6 +112,13 @@ var units: Array = []  # cada unidade é um Dictionary
 var next_id := 1
 var backpack: Array = []
 var bag_capacity := 3
+var bag_base := 3
+var bag_bonus := 0     # % de espaço extra da melhor mochila
+var hat_bonus := 0     # % de vida extra do melhor boné
+var armor := 0         # % de dano a menos (Fita Vermelha)
+var reach := 1         # casas que o Sobrevivente anda (Anel / Tênis)
+var calm := 0          # rodadas em que os bebês ficam quietos (Mamadeira)
+var equipped: Array = []  # letras dos equipamentos em uso
 var weapon := "pistol"
 var ammo := 3
 var status := "playing"  # playing | won | lost
@@ -125,7 +149,14 @@ func load_level(data: Dictionary) -> void:
 	status = "playing"
 	end_reason = ""
 	turn = 1
-	bag_capacity = data.get("backpack", 3)
+	bag_base = data.get("backpack", 3)
+	bag_capacity = bag_base
+	bag_bonus = 0
+	hat_bonus = 0
+	armor = 0
+	reach = 1
+	calm = 0
+	equipped = []
 	weapon = data.get("weapon", "pistol")
 	ammo = data.get("ammo", 3)
 	for y in size.y:
@@ -187,6 +218,13 @@ func clone():
 	b.next_id = next_id
 	b.backpack = backpack.duplicate()
 	b.bag_capacity = bag_capacity
+	b.bag_base = bag_base
+	b.bag_bonus = bag_bonus
+	b.hat_bonus = hat_bonus
+	b.armor = armor
+	b.reach = reach
+	b.calm = calm
+	b.equipped = equipped.duplicate()
 	b.weapon = weapon
 	b.ammo = ammo
 	b.status = status
@@ -261,18 +299,24 @@ func valid_moves(u: Dictionary) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	if u.is_empty() or u["team"] != "s":
 		return out
+	# Anel do Poder / Tênis Branco: o Sobrevivente desliza várias casas
+	# em linha (como a dama), parando em obstáculos, peças e portas.
+	var steps: int = reach if u["main"] else 1
 	for d in dirs_for(u["moves"]):
-		var p: Vector2i = u["pos"] + d
-		if not in_bounds(p):
-			continue
-		var c := cell(p)
-		if c == BLOCK or c == WALL:
-			continue
-		if c == DOOR and not (u["main"] and backpack.has("k")):
-			continue
-		if not unit_at(p).is_empty():
-			continue
-		out.append(p)
+		for i in range(1, steps + 1):
+			var p: Vector2i = u["pos"] + d * i
+			if not in_bounds(p):
+				break
+			var c := cell(p)
+			if c == BLOCK or c == WALL:
+				break
+			if c == DOOR and not (u["main"] and backpack.has("k")):
+				break
+			if not unit_at(p).is_empty():
+				break
+			out.append(p)
+			if c == DOOR:
+				break
 	return out
 
 
@@ -336,7 +380,10 @@ func player_move(id: int, to: Vector2i) -> Dictionary:
 func _pickup(p: Vector2i) -> String:
 	var it: String = items[p]
 	var def: Dictionary = ITEMS[it]
-	if def["bag"]:
+	if def.has("hat") or def.has("armor") or def.has("bag_bonus") or def.has("reach"):
+		if not _equip(it):
+			return ""
+	elif def["bag"]:
 		if backpack.size() >= bag_capacity:
 			_log("Mochila cheia! %s ficou no chão." % def["name"])
 			return ""
@@ -350,6 +397,42 @@ func _pickup(p: Vector2i) -> String:
 	items.erase(p)
 	_log("Pegou: %s." % def["name"])
 	return it
+
+
+# Veste um equipamento. Do mesmo tipo (boné, mochila, calçado) fica só o melhor.
+# Devolve false se já tem um igual ou melhor (o item fica no chão).
+func _equip(it: String) -> bool:
+	var def: Dictionary = ITEMS[it]
+	var m := main_unit()
+	if def.has("hat"):
+		var v: int = def["hat"]
+		if v <= hat_bonus:
+			_log("Você já usa um boné igual ou melhor.")
+			return false
+		var extra := MAX_HP * (v - hat_bonus) / 100
+		hat_bonus = v
+		m["max_hp"] += extra
+		m["hp"] += extra
+	elif def.has("armor"):
+		if armor >= int(def["armor"]):
+			_log("Você já usa a Fita Vermelha.")
+			return false
+		armor = def["armor"]
+	elif def.has("bag_bonus"):
+		var v: int = def["bag_bonus"]
+		if v <= bag_bonus:
+			_log("Sua mochila já é igual ou maior.")
+			return false
+		bag_bonus = v
+		bag_capacity = ceili(bag_base * (100 + v) / 100.0)
+	elif def.has("reach"):
+		if int(def["reach"]) <= reach:
+			_log("Você já anda igual ou mais longe.")
+			return false
+		reach = def["reach"]
+	equipped.append(it)
+	_log("Equipou %s: %s." % [def["name"], def["desc"]])
+	return true
 
 
 func player_shoot(dir: Vector2i) -> Dictionary:
@@ -393,15 +476,32 @@ func player_shoot(dir: Vector2i) -> Dictionary:
 		"dropped": dropped, "explosions": explosions}
 
 
-func use_item(index: int) -> bool:
+# target_id = quem recebe o kit médico (o personagem selecionado); sem ele, o Sobrevivente.
+func use_item(index: int, target_id := -1) -> bool:
 	var m := main_unit()
 	if status != "playing" or m.is_empty() or index < 0 or index >= backpack.size():
 		return false
-	if backpack[index] == "h" and m["hp"] < m["max_hp"]:
-		m["hp"] = mini(m["hp"] + 2, m["max_hp"])
+	var t := unit_by_id(target_id)
+	if t.is_empty() or t["team"] != "s":
+		t = m
+	if backpack[index] == "h" and t["hp"] < t["max_hp"]:
+		t["hp"] = mini(t["hp"] + MEDKIT_HEAL, t["max_hp"])
 		backpack.remove_at(index)
-		_log("Usou Kit Médico (vida %d)." % m["hp"])
+		_log("%s usou Kit Médico (vida %d)." % [t["name"], t["hp"]])
 		return true
+	if backpack[index] == "m" and has_baby():
+		calm = CALM_TURNS
+		backpack.remove_at(index)
+		_log("Deu a mamadeira: o bebê ficou quieto por %d rodadas." % CALM_TURNS)
+		return true
+	return false
+
+
+# Tem algum bebê no tabuleiro (no chão ou no colo)?
+func has_baby() -> bool:
+	for u in survivors():
+		if u["cries"]:
+			return true
 	return false
 
 
@@ -460,6 +560,8 @@ func distance_field(sources: Array, moves: String) -> Dictionary:
 
 func _targets() -> Array:
 	var s := survivors()
+	if calm > 0:  # bebê mamando: o choro não atrai ninguém
+		return s
 	var criers := s.filter(func(u): return u["cries"])
 	return criers if not criers.is_empty() else s
 
@@ -496,6 +598,8 @@ func run_zombie_turn() -> Array:
 	_check_end()
 	if status == "playing":
 		turn += 1
+		if calm > 0:
+			calm -= 1
 	return events
 
 
@@ -785,23 +889,30 @@ func _kill(z: Dictionary, events: Array) -> void:
 		_log("%s largou %s." % [z["name"], ITEMS[z["drops"]]["name"]])
 
 
-# Dano em um sobrevivente (o principal perde vida; os frágeis viram zumbi).
+# Pontos de vida que um golpe tira (a Fita Vermelha só protege o Sobrevivente).
+func damage_points(dmg: int, victim := {}) -> int:
+	var a: int = armor if victim.is_empty() or victim["main"] else 0
+	return roundi(dmg * HIT * (100 - a) / 100.0)
+
+
+# Dano em um sobrevivente. Todos têm vida; com 0 o personagem morre.
+# O Sobrevivente morto acaba a fase; os outros levantam como zumbi.
 func _hurt(victim: Dictionary, dmg: int, source: String) -> void:
 	if not units.has(victim):
 		return
+	victim["hp"] -= damage_points(dmg, victim)
+	_log("%s feriu %s! (vida %d)" % [source, victim["name"], maxi(victim["hp"], 0)])
+	if victim["hp"] > 0:
+		return
+	units.erase(victim)
 	if victim["main"]:
-		victim["hp"] -= dmg
-		_log("%s feriu o Sobrevivente! (vida %d)" % [source, maxi(victim["hp"], 0)])
-		if victim["hp"] <= 0:
-			units.erase(victim)
-			_lose("O Sobrevivente foi pego pelos zumbis.")
-	else:
-		units.erase(victim)
-		var nz := _spawn("z", "Z", victim["pos"])
-		nz["tick"] = -1  # não age na mesma rodada
-		_log("%s virou zumbi!" % victim["name"])
-		if victim["required"]:
-			_lose("%s foi transformado." % victim["name"])
+		_lose("O Sobrevivente foi pego pelos zumbis.")
+		return
+	var nz := _spawn("z", "Z", victim["pos"])
+	nz["tick"] = -1  # não age na mesma rodada
+	_log("%s morreu e virou zumbi!" % victim["name"])
+	if victim["required"]:
+		_lose("%s morreu." % victim["name"])
 
 
 # Peão que chega ao fim do tabuleiro vira outro zumbi (como no xadrez).
@@ -821,15 +932,14 @@ func _promote(z: Dictionary, type: String) -> void:
 func _attack(z: Dictionary, victim: Dictionary) -> Dictionary:
 	var ev := {"type": "attack", "id": z["id"], "target": victim["id"], "at": victim["pos"]}
 	var was_main: bool = victim["main"]
-	if was_main and z["charge"] and victim["hp"] > 1:
+	if was_main and z["charge"] and victim["hp"] > damage_points(1, victim):
 		var to: Vector2i = victim["pos"] + (victim["pos"] - z["pos"])
 		if in_bounds(to) and cell(to) == FLOOR and unit_at(to).is_empty():
 			victim["pos"] = to
 			ev["pushed_to"] = to
 			_log("%s empurrou o Sobrevivente!" % z["name"])
-	var n_before := units.size()
 	_hurt(victim, 1, z["name"])
-	if not was_main and units.size() >= n_before:
+	if not was_main and not units.has(victim):
 		ev["converted"] = units[-1]["id"]
 	if was_main and not units.has(victim):
 		ev["killed"] = true

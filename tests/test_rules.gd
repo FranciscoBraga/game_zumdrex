@@ -39,6 +39,11 @@ func _init() -> void:
 	test_archer_keeps_distance()
 	test_bloater_explodes()
 	test_walls_block_ranged()
+	test_hats()
+	test_red_ribbon()
+	test_backpacks()
+	test_ring_and_sneakers()
+	test_baby_bottle()
 	test_levels_are_winnable()
 	print("\n%d verificações, %d falhas" % [checks, failures])
 	quit(1 if failures > 0 else 0)
@@ -87,7 +92,7 @@ func test_zombie_chases() -> void:
 func test_zombie_attacks() -> void:
 	var b = make(["....", "....", "..ZP", "...."])
 	b.run_zombie_turn()
-	check(b.main_unit()["hp"] == 2, "mordida tira 1 de vida")
+	check(b.main_unit()["hp"] == 66, "mordida tira 34 de vida")
 	check(b.zombies()[0]["pos"] == Vector2i(2, 2), "zumbi fica parado ao atacar")
 	b.run_zombie_turn()
 	b.run_zombie_turn()
@@ -155,8 +160,8 @@ func test_medkit() -> void:
 	var m: Dictionary = b.main_unit()
 	b.player_move(m["id"], Vector2i(0, 2))
 	check(not b.use_item(0), "kit não é usado com vida cheia")
-	m["hp"] = 1
-	check(b.use_item(0) and m["hp"] == 3 and b.backpack.is_empty(), "kit cura 2")
+	m["hp"] = 10
+	check(b.use_item(0) and m["hp"] == 60 and b.backpack.is_empty(), "kit cura 50")
 
 
 func test_rescue_and_win() -> void:
@@ -176,8 +181,18 @@ func test_dog_knight_and_conversion() -> void:
 	check(moves.has(Vector2i(2, 2)) == false and moves.has(Vector2i(0, 2)) and moves.has(Vector2i(3, 3)), "cachorro anda em L")
 	var b2 = make(["......", "......", "......", "......", ".DZ.P."])
 	b2.run_zombie_turn()
-	check(b2.zombies().size() == 2 and b2.survivors().size() == 1, "cachorro mordido vira zumbi")
+	var dog2: Dictionary = b2.unit_at(Vector2i(1, 4))
+	check(b2.survivors().size() == 2 and dog2["hp"] == 36, "cachorro mordido perde 34 de vida (70 -> 36)")
+	b2.run_zombie_turn()
+	check(b2.survivors().size() == 2 and dog2["hp"] == 2, "cachorro aguenta a segunda mordida (36 -> 2)")
+	b2.run_zombie_turn()
+	check(b2.zombies().size() == 2 and b2.survivors().size() == 1, "na terceira mordida o cachorro morre e vira zumbi")
 	check(b2.status == "playing", "perder o cachorro não acaba a fase")
+	var b3 = make(["......", "......", "......", "......", "D...P."])
+	var dog3: Dictionary = b3.unit_at(Vector2i(0, 4))
+	b3.backpack.append("h")
+	dog3["hp"] = 10
+	check(b3.use_item(0, dog3["id"]) and dog3["hp"] == 60, "kit médico cura o personagem selecionado")
 
 
 func test_baby_attracts_zombies() -> void:
@@ -187,7 +202,9 @@ func test_baby_attracts_zombies() -> void:
 	check(zp == Vector2i(3, 1) or zp == Vector2i(2, 2), "zumbi vai atrás do bebê, não do mais próximo")
 	var b2 = make([".....", ".....", ".....", "...ZB", "P...."])
 	b2.run_zombie_turn()
-	check(b2.status == "lost", "bebê transformado = derrota")
+	check(b2.status == "playing" and b2.unit_at(Vector2i(4, 3))["hp"] == 16, "bebê aguenta uma mordida (50 -> 16)")
+	b2.run_zombie_turn()
+	check(b2.status == "lost", "bebê morto = derrota")
 
 
 func test_carry_baby() -> void:
@@ -224,10 +241,10 @@ func test_pawn_zombie() -> void:
 	b.run_zombie_turn()
 	check(b.zombies()[0]["pos"] == Vector2i(1, 2), "peão desce 1 casa")
 	b.run_zombie_turn()
-	check(b.zombies()[0]["pos"] == Vector2i(1, 2) and b.main_unit()["hp"] == 3, "peão bloqueado na frente não anda nem morde")
+	check(b.zombies()[0]["pos"] == Vector2i(1, 2) and b.main_unit()["hp"] == 100, "peão bloqueado na frente não anda nem morde")
 	var b2 = make(["....", ".N..", "..P.", "...."])
 	b2.run_zombie_turn()
-	check(b2.main_unit()["hp"] == 2, "peão morde na diagonal da frente")
+	check(b2.main_unit()["hp"] == 66, "peão morde na diagonal da frente")
 	var b3 = make(["P...", "....", ".N..", "...."])
 	b3.run_zombie_turn()
 	check(b3.zombies()[0]["type"] == "T" and b3.zombies()[0]["hp"] == 4, "peão que chega ao fim vira Tanque")
@@ -244,7 +261,7 @@ func test_crawler_hidden() -> void:
 	b.run_zombie_turn()
 	check(b.zombies()[0]["pos"] == Vector2i(1, 2), "rastejante anda na diagonal")
 	b.run_zombie_turn()
-	check(m["hp"] == 2, "rastejante morde na diagonal")
+	check(m["hp"] == 66, "rastejante morde na diagonal")
 
 
 func test_trotter() -> void:
@@ -266,19 +283,19 @@ func test_brute_charge() -> void:
 	check(ev.is_empty() and b.zombies()[0]["stun"] == 0, "tonto perde a rodada")
 	var b2 = make([".....", ".U...", ".P...", ".....", "....."])
 	b2.run_zombie_turn()
-	check(b2.main_unit()["hp"] == 2 and b2.main_unit()["pos"] == Vector2i(1, 3), "mordida do brutamontes empurra 1 casa")
+	check(b2.main_unit()["hp"] == 66 and b2.main_unit()["pos"] == Vector2i(1, 3), "mordida do brutamontes empurra 1 casa")
 
 
 func test_spitter_acid() -> void:
 	var b = make(["S...", "....", "....", "P..."])
 	var ev: Array = b.run_zombie_turn()
-	check(ev[0]["type"] == "aim" and b.main_unit()["hp"] == 3, "zumbi de longe primeiro mira")
+	check(ev[0]["type"] == "aim" and b.main_unit()["hp"] == 100, "zumbi de longe primeiro mira")
 	ev = b.run_zombie_turn()
-	check(ev[0]["type"] == "shoot" and b.main_unit()["hp"] == 2, "cuspidor acerta a 3 casas em linha reta")
+	check(ev[0]["type"] == "shoot" and b.main_unit()["hp"] == 66, "cuspidor acerta a 3 casas em linha reta")
 	check(b.hazards.has(Vector2i(0, 3)), "cuspe deixa ácido no chão")
 	b.units.erase(b.zombies()[0])
 	b.run_zombie_turn()
-	check(b.main_unit()["hp"] == 1, "ácido queima quem fica em cima")
+	check(b.main_unit()["hp"] == 32, "ácido queima quem fica em cima")
 	b.main_unit()["pos"] = Vector2i(3, 3)
 	b.run_zombie_turn()
 	check(b.hazards.is_empty(), "ácido some depois de 2 rodadas")
@@ -292,12 +309,12 @@ func test_police_drops_ammo() -> void:
 	var b2 = make(["O....", ".....", ".....", "P...."])
 	b2.run_zombie_turn()
 	b2.run_zombie_turn()
-	check(b2.main_unit()["hp"] == 2, "policial atira a 3 casas")
+	check(b2.main_unit()["hp"] == 66, "policial atira a 3 casas")
 	var b3 = make(["O....", ".....", ".....", "P...."])
 	b3.run_zombie_turn()
 	b3.main_unit()["pos"] = Vector2i(1, 3)  # saiu da linha de tiro
 	b3.run_zombie_turn()
-	check(b3.main_unit()["hp"] == 3, "sair da linha vermelha desvia do tiro")
+	check(b3.main_unit()["hp"] == 100, "sair da linha vermelha desvia do tiro")
 
 
 func test_necromancer_revives() -> void:
@@ -310,7 +327,7 @@ func test_necromancer_revives() -> void:
 	var b2 = make(["J.....", "......", "......", "...P.."])
 	b2.run_zombie_turn()
 	b2.run_zombie_turn()
-	check(b2.main_unit()["hp"] == 2, "necromante ataca na diagonal de longe")
+	check(b2.main_unit()["hp"] == 66, "necromante ataca na diagonal de longe")
 
 
 func test_queen_aura() -> void:
@@ -328,10 +345,10 @@ func test_screamer() -> void:
 	var zc: Dictionary = b.zombies()[0]
 	var b0 = make(["......", "......", "...Y..", "......", ".P....", "......"])
 	var ev0: Array = b0.run_zombie_turn()
-	check(ev0[0]["type"] == "aim" and b0.main_unit()["hp"] == 3, "gritador puxa o ar antes de gritar")
+	check(ev0[0]["type"] == "aim" and b0.main_unit()["hp"] == 100, "gritador puxa o ar antes de gritar")
 	b.zombies()[1]["aim_area"] = true  # já puxou o ar
 	var ev: Array = b.run_zombie_turn()
-	check(ev.any(func(e): return e["type"] == "scream") and b.main_unit()["hp"] == 2, "grito fere quem está a 2 casas")
+	check(ev.any(func(e): return e["type"] == "scream") and b.main_unit()["hp"] == 66, "grito fere quem está a 2 casas")
 	var moved: int = (zc["pos"] - Vector2i(0, 0)).abs().x + (zc["pos"] - Vector2i(0, 0)).abs().y
 	check(moved == 2, "grito chama zumbi (ele anda de novo)")
 	var ev2: Array = b.run_zombie_turn()
@@ -342,40 +359,40 @@ func test_soldier_pierce_reload() -> void:
 	var b = make(["F.DP.."], {})
 	b.run_zombie_turn()
 	b.run_zombie_turn()
-	check(b.survivors().size() == 1 and b.main_unit()["hp"] == 2, "soldado atravessa: acerta cachorro e sobrevivente")
+	check(b.unit_at(Vector2i(2, 0))["hp"] == 36 and b.main_unit()["hp"] == 66, "soldado atravessa: acerta cachorro e sobrevivente")
 	var b2 = make(["F....P", "......"])
 	b2.run_zombie_turn()
 	b2.run_zombie_turn()
 	var ev: Array = b2.run_zombie_turn()
-	check(b2.main_unit()["hp"] == 2 and not ev.any(func(e): return e["type"] == "shoot"), "soldado recarrega antes do próximo tiro")
+	check(b2.main_unit()["hp"] == 66 and not ev.any(func(e): return e["type"] == "shoot"), "soldado recarrega antes do próximo tiro")
 
 
 func test_archer_keeps_distance() -> void:
 	var b = make([".......", ".......", "...A...", "...P...", ".......", ".......", "......."])
 	b.run_zombie_turn()
 	var a: Dictionary = b.zombies()[0]
-	check(b._cheb(a["pos"], Vector2i(3, 3)) >= 3 and b.main_unit()["hp"] == 3, "arqueiro foge quando você chega perto")
+	check(b._cheb(a["pos"], Vector2i(3, 3)) >= 3 and b.main_unit()["hp"] == 100, "arqueiro foge quando você chega perto")
 	var b2 = make(["A......", ".......", ".......", ".......", "....P.."])
 	b2.run_zombie_turn()
 	b2.run_zombie_turn()
-	check(b2.main_unit()["hp"] == 2, "arqueiro acerta na diagonal de longe")
+	check(b2.main_unit()["hp"] == 66, "arqueiro acerta na diagonal de longe")
 
 
 func test_bloater_explodes() -> void:
 	var b = make(["....", ".IZ.", ".P..", "...."])
 	var ev: Array = b.run_zombie_turn()
-	check(ev[0]["type"] == "explode" and b.main_unit()["hp"] == 2, "inchado explode perto do sobrevivente")
+	check(ev[0]["type"] == "explode" and b.main_unit()["hp"] == 66, "inchado explode perto do sobrevivente")
 	check(b.zombies().size() == 1 and b.zombies()[0]["hp"] == 1, "explosão fere zumbis em volta")
 	var b2 = make(["....", "PI..", "....", "...."], {"ammo": 3})
 	b2.zombies()[0]["hp"] = 1
 	var r: Dictionary = b2.player_shoot(Vector2i(1, 0))
-	check(r["explosions"].size() == 1 and b2.main_unit()["hp"] == 2, "inchado abatido explode também")
+	check(r["explosions"].size() == 1 and b2.main_unit()["hp"] == 66, "inchado abatido explode também")
 
 
 func test_walls_block_ranged() -> void:
 	var b = make(["O...", "W...", "....", "P..."])
 	b.run_zombie_turn()
-	check(b.main_unit()["hp"] == 3, "parede bloqueia tiro de zumbi")
+	check(b.main_unit()["hp"] == 100, "parede bloqueia tiro de zumbi")
 
 
 func test_levels_are_winnable() -> void:
@@ -471,3 +488,79 @@ func actions(b) -> Array:
 		if idx >= 0:
 			out.append({"kind": "heal", "index": idx, "score": 4.0})
 	return out
+
+
+func test_hats() -> void:
+	var b = make(["....", "....", "1.2.", "P.3."])
+	var m: Dictionary = b.main_unit()
+	b.player_move(m["id"], Vector2i(0, 2))
+	check(m["max_hp"] == 110 and m["hp"] == 110, "boné branco: +10% de vida")
+	b.player_move(m["id"], Vector2i(1, 2))
+	b.player_move(m["id"], Vector2i(2, 2))
+	check(m["max_hp"] == 120 and m["hp"] == 120, "boné verde troca o branco: +20%")
+	b.player_move(m["id"], Vector2i(2, 3))
+	check(m["max_hp"] == 130, "boné preto: +30%")
+	var b2 = make(["....", "....", "3.1.", "P..."])
+	var m2: Dictionary = b2.main_unit()
+	b2.player_move(m2["id"], Vector2i(0, 2))
+	b2.player_move(m2["id"], Vector2i(1, 2))
+	b2.player_move(m2["id"], Vector2i(2, 2))
+	check(m2["max_hp"] == 130 and b2.items.has(Vector2i(2, 2)), "boné pior fica no chão")
+
+
+func test_red_ribbon() -> void:
+	var b = make(["....", "....", "v.ZP", "...."])
+	check(b.damage_points(1, {"main": false}) == 34, "fita não protege os outros")
+	b.items.erase(Vector2i(0, 2))
+	b.items[Vector2i(3, 3)] = "v"
+	var m: Dictionary = b.main_unit()
+	b.player_move(m["id"], Vector2i(3, 3))
+	b.player_move(m["id"], Vector2i(3, 2))
+	b.run_zombie_turn()
+	check(m["hp"] == 69, "fita vermelha: mordida tira 31 em vez de 34 (tem %d)" % m["hp"])
+
+
+func test_backpacks() -> void:
+	var b = make(["....", "....", "u.y.", "P..."], {"backpack": 4})
+	var m: Dictionary = b.main_unit()
+	b.player_move(m["id"], Vector2i(0, 2))
+	check(b.bag_capacity == 6, "mochila nível 2: 4 + 30% = 6 espaços (arredonda para cima)")
+	b.player_move(m["id"], Vector2i(1, 2))
+	b.player_move(m["id"], Vector2i(2, 2))
+	check(b.bag_capacity == 6 and b.bag_bonus == 50, "mochila militar: 4 + 50% = 6")
+	var b2 = make(["....", "....", "y...", "P..."], {"backpack": 3})
+	b2.player_move(b2.main_unit()["id"], Vector2i(0, 2))
+	check(b2.bag_capacity == 5, "mochila militar: 3 + 50% = 5 (arredonda para cima)")
+
+
+func test_ring_and_sneakers() -> void:
+	var b = make([".....", ".....", ".....", ".....", "o...P"])
+	var m: Dictionary = b.main_unit()
+	check(not b.valid_moves(m).has(Vector2i(2, 4)), "sem anel anda só 1 casa")
+	b.items.erase(Vector2i(0, 4))
+	b.items[Vector2i(3, 4)] = "o"
+	b.player_move(m["id"], Vector2i(3, 4))
+	check(b.valid_moves(m).has(Vector2i(1, 4)) and b.valid_moves(m).has(Vector2i(1, 2)), "anel: até 2 casas em qualquer direção")
+	check(not b.valid_moves(m).has(Vector2i(0, 4)), "anel não chega a 3 casas")
+	var b2 = make([".....", "..M..", ".....", ".....", "t...P"])
+	b2.items.erase(Vector2i(0, 4))
+	b2.items[Vector2i(4, 3)] = "t"
+	var m2: Dictionary = b2.main_unit()
+	b2.player_move(m2["id"], Vector2i(4, 3))
+	check(b2.valid_moves(m2).has(Vector2i(4, 0)) and b2.valid_moves(m2).has(Vector2i(1, 3)), "tênis: até 3 casas")
+	check(not b2.valid_moves(m2).has(Vector2i(1, 0)), "tênis não atravessa a mesa")
+
+
+func test_baby_bottle() -> void:
+	var b0 = make(["...Z....B", ".........", ".........", "...P....."])
+	b0.run_zombie_turn()
+	check(b0.zombies()[0]["pos"] == Vector2i(4, 0), "sem mamadeira o zumbi vai atrás do bebê")
+	var b = make(["...Z....B", ".........", ".........", "...P....."])
+	b.backpack.append("m")
+	check(b.use_item(0), "mamadeira pode ser usada com bebê na fase")
+	check(b.calm == 3, "bebê fica quieto 3 rodadas")
+	b.run_zombie_turn()
+	check(b.zombies()[0]["pos"] == Vector2i(3, 1), "com o bebê quieto o zumbi vai atrás de quem está mais perto")
+	var b2 = make(["Z...", "....", "....", "...P"])
+	b2.backpack.append("m")
+	check(not b2.use_item(0), "sem bebê a mamadeira não é usada")
