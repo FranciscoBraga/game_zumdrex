@@ -342,7 +342,9 @@ func _zombie_phase() -> void:
 				continue
 			if ev["type"] == "move":
 				v.face(ev["to"].x - ev["from"].x)
+				v.play_walk()
 				await _tween_pos(v, grid_to_px(ev["to"]))
+				v.play_idle()
 			elif ev["type"] == "promote" or ev["type"] == "reveal":
 				# troca o visual (peão virou tanque / rastejante apareceu)
 				v.queue_free()
@@ -354,6 +356,7 @@ func _zombie_phase() -> void:
 				var target_px := grid_to_px(ev["at"])
 				v.face(int(signf(target_px.x - v.position.x)))
 				var home: Vector2 = v.position
+				v.play_attack()
 				var tw := create_tween()
 				tw.tween_property(v, "position", home.lerp(target_px, 0.45), 0.09)
 				tw.tween_property(v, "position", home, 0.12)
@@ -389,6 +392,7 @@ func _play_fx_event(ev: Dictionary) -> bool:
 			var b := grid_to_px(ev["to"])
 			if v:
 				v.face(int(signf(b.x - a.x)))
+				v.play_attack()
 			fx.append({"kind": "shot", "a": a, "b": b, "t": 1.0,
 				"color": RANGED_COLOR.get(ev["kind"], Color.WHITE)})
 			await get_tree().create_timer(0.25).timeout
@@ -474,7 +478,7 @@ func _sync_views() -> void:
 		v.selected = (u["id"] == selected_id and board.status == "playing")
 	for id in views.keys():
 		if not alive.has(id):
-			views[id].queue_free()
+			views[id].die()  # zumbi com folha própria toca a animação de morte
 			views.erase(id)
 
 

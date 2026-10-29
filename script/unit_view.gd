@@ -1,6 +1,6 @@
 extends Node2D
-# Visual de uma peça no tabuleiro. As artes são provisórias:
-# trocar pelas imagens finais (Gemini) quando estiverem prontas.
+# Visual de uma peça no tabuleiro. Sobrevivente e zumbis usam folhas de
+# sprites geradas no Gemini e recortadas com tools/slice_gemini_sheet.py.
 
 const PLAYER_TEX = preload("res://assets/characters/survivor.png")
 # survivor.png: 6 colunas x 16 linhas, quadros de 48x48 (gerado pelo Gemini,
@@ -9,50 +9,14 @@ const ROW_IDLE := 1    # parado, de lado
 const ROW_WALK := 4    # andando, de lado
 const ROW_SHOOT := {"pistol": 6, "bow": 9, "rifle": 12, "shotgun": 12}
 const SHOOT_FRAMES := 3
-const ANIM_DIR := "res://assets/Character_animation/"
-# zumbi -> pasta/prefixo dos 4 quadros de animação (16x16)
-const ZOMBIE_FRAMES := {
-	"Z": "monsters_idle/skeleton1/v1/skeleton_v1_",
-	"R": "monsters_idle/skeleton2/v1/skeleton2_v1_",
-	"T": "monsters_idle/vampire/v1/vampire_v1_",
-	"K": "monsters_idle/skull/v1/skull_v1_",
-	"N": "monsters_idle/skeleton1/v2/skeleton_v2_",
-	"C": "monsters_idle/skull/v2/skull_v2_",
-	"G": "monsters_idle/skeleton2/v2/skeleton2_v2_",
-	"U": "monsters_idle/vampire/v2/vampire_v2_",
-	# com super poderes
-	"S": "monsters_idle/skull/v1/skull_v1_",
-	"O": "monsters_idle/skeleton2/v1/skeleton2_v1_",
-	"J": "priests_idle/priest1/v1/priest1_v1_",
-	"Q": "priests_idle/priest3/v1/priest3_v1_",
-	"Y": "monsters_idle/skull/v2/skull_v2_",
-	"F": "priests_idle/priest2/v1/priest2_v1_",
-	"A": "monsters_idle/skeleton1/v2/skeleton_v2_",
-	"I": "monsters_idle/vampire/v1/vampire_v1_",
-}
 
-# tamanho relativo de cada zumbi (16 px -> casa)
-const ZOMBIE_SIZE := {"T": 0.85, "U": 0.9, "N": 0.6, "C": 0.55, "Q": 0.95, "I": 0.95, "S": 0.75, "Y": 0.75}
-
-const ZOMBIE_TINT := {
-	"Z": Color(0.65, 1.0, 0.6),
-	"R": Color(1.0, 0.7, 0.6),
-	"T": Color(0.75, 1.0, 0.7),
-	"K": Color(0.85, 0.7, 1.0),
-	"N": Color(0.9, 0.95, 0.6),
-	"C": Color(0.6, 0.9, 0.75),
-	"G": Color(1.0, 0.85, 0.5),
-	"U": Color(1.0, 0.55, 0.5),
-	"S": Color(0.55, 1.0, 0.35),
-	"O": Color(0.55, 0.7, 1.0),
-	"J": Color(0.8, 0.55, 1.0),
-	"Q": Color(1.0, 0.55, 0.85),
-	"Y": Color(1.0, 0.95, 0.45),
-	"F": Color(0.75, 0.85, 0.5),
-	"A": Color(0.95, 0.9, 0.8),
-	"I": Color(0.6, 0.95, 0.45),
-}
-
+# Folha própria de cada zumbi (gerada no Gemini): assets/zombies/<letra>.png
+# 6 colunas x 3 linhas de 48x48: andando (6), atacando (4), morrendo (3).
+const ZOMBIE_SHEET_DIR := "res://assets/zombies/"
+const Z_WALK := 0
+const Z_ATTACK := 1
+const Z_DEATH := 2
+const Z_LEN := [6, 4, 3]
 var unit_id := 0
 var type := ""
 var team := ""
@@ -64,12 +28,15 @@ var carrying := false
 var is_hidden := false
 var stunned := false
 var sprite: Sprite2D
-var frames: Array = []  # texturas soltas (zumbis)
 var _t := 0.0
 var _flash := 0.0
 var anim_row := ROW_IDLE
 var anim_t := 0.0
-var anim_once := false  # true = toca uma vez (tiro) e volta para parado
+var anim_once := false  # true = toca uma vez (tiro/ataque) e volta para parado
+var anim_len := 6
+var anim_fps := 6.0
+var has_sheet := false  # zumbi com folha própria do Gemini
+var dying := false
 
 
 func setup(u: Dictionary, tile_size: float) -> void:
@@ -85,13 +52,13 @@ func setup(u: Dictionary, tile_size: float) -> void:
 			sprite.hframes = 6
 			sprite.vframes = 16
 		else:
-			for i in range(1, 5):
-				frames.append(load(ANIM_DIR + ZOMBIE_FRAMES[type] + str(i) + ".png"))
-			sprite.texture = frames[0]
-			sprite.modulate = ZOMBIE_TINT.get(type, Color.WHITE)
-			s = tile / 16.0 * ZOMBIE_SIZE.get(type, 0.68)
+			has_sheet = true
+			sprite.texture = load(ZOMBIE_SHEET_DIR + type + ".png")
+			sprite.hframes = 6
+			sprite.vframes = 3
+			_set_anim(Z_WALK, false, 4.0)
 		sprite.scale = Vector2(s, s)
-		sprite.position = Vector2(0, -tile * (0.26 if type == "P" else 0.08))
+		sprite.position = Vector2(0, -tile * 0.26)
 		add_child(sprite)
 	update_from(u)
 	_t = randf() * 3.0
@@ -114,27 +81,59 @@ func face(dx: int) -> void:
 		sprite.flip_h = dx < 0
 
 
+func _set_anim(row: int, once: bool, fps: float) -> void:
+	anim_row = row
+	anim_once = once
+	anim_fps = fps
+	anim_t = 0.0
+	if type == "P":
+		anim_len = SHOOT_FRAMES if once else 6
+	else:
+		anim_len = Z_LEN[row]
+
+
 func play_walk() -> void:
 	if type == "P":
-		anim_row = ROW_WALK
-		anim_t = 0.0
-		anim_once = false
+		_set_anim(ROW_WALK, false, 12.0)
+	elif has_sheet:
+		_set_anim(Z_WALK, false, 12.0)
 
 
 func play_idle() -> void:
 	if type == "P":
-		anim_row = ROW_IDLE
-		anim_once = false
+		_set_anim(ROW_IDLE, false, 6.0)
+	elif has_sheet:
+		_set_anim(Z_WALK, false, 4.0)  # zumbi parado cambaleia devagar
 
 
 # toca a animação de tiro da arma e espera ela terminar
 func play_shoot(weapon: String) -> void:
 	if type != "P":
 		return
-	anim_row = ROW_SHOOT.get(weapon, ROW_SHOOT["pistol"])
-	anim_t = 0.0
-	anim_once = true
+	_set_anim(ROW_SHOOT.get(weapon, ROW_SHOOT["pistol"]), true, 10.0)
 	await get_tree().create_timer(SHOOT_FRAMES / 10.0).timeout
+
+
+# zumbi atacando (mordida ou ataque de longe)
+func play_attack() -> void:
+	if has_sheet:
+		_set_anim(Z_ATTACK, true, 12.0)
+
+
+# zumbi morrendo: toca a animação e some
+func die() -> void:
+	if not has_sheet or dying:
+		queue_free()
+		return
+	dying = true
+	# o Inchado morre explodindo (a "explosão" é a linha de ataque dele)
+	var row := Z_ATTACK if type == "I" else Z_DEATH
+	_set_anim(row, true, 8.0)
+	await get_tree().create_timer(Z_LEN[row] / 8.0 + 0.35).timeout
+	var tw := create_tween()
+	tw.tween_property(self, "modulate:a", 0.0, 0.25)
+	await tw.finished
+	queue_free()
 
 
 func flash() -> void:
@@ -144,19 +143,15 @@ func flash() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	if sprite:
-		if frames.is_empty():
-			anim_t += delta
-			if anim_once:
-				var f := int(anim_t * 10.0)
-				if f >= SHOOT_FRAMES + 2:  # segura o último quadro um instante
-					play_idle()
-				else:
-					sprite.frame = anim_row * 6 + mini(f, SHOOT_FRAMES - 1)
+		anim_t += delta
+		var f := int(anim_t * anim_fps)
+		if anim_once:
+			if f >= anim_len + 2 and not dying:  # segura o último quadro um instante
+				play_idle()
 			else:
-				var speed := 12.0 if anim_row == ROW_WALK else 6.0
-				sprite.frame = anim_row * 6 + int(anim_t * speed) % 6
+				sprite.frame = anim_row * 6 + mini(f, anim_len - 1)
 		else:
-			sprite.texture = frames[int(_t * 5.0) % frames.size()]
+			sprite.frame = anim_row * 6 + f % anim_len
 		if _flash > 0.0:
 			_flash -= delta
 			sprite.self_modulate = Color(3, 1, 1) if _flash > 0.0 else Color.WHITE

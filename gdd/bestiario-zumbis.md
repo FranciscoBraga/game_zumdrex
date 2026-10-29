@@ -41,3 +41,11 @@ Legenda de status: ✅ no jogo · 🔜 planejado
 - Fase 7 ("Delegacia"): Policial, Cuspidor e Soldado.
 - Fase 8 ("Cemitério"): Necromante, Arqueiro e Inchado.
 - Fase 9 ("A Rainha"): Rainha Zumbi e Gritador — chefe final.
+
+## Arte
+
+Cada zumbi tem a própria folha de sprites, gerada no Gemini no mesmo estilo do herói (o `survivor.png` vai anexado como referência em cada pedido):
+
+- imagem original do Gemini: `gdd/gemini-zumbis/<letra>.jpg`
+- folha usada no jogo: `assets/zombies/<letra>.png` — 6 colunas × 3 linhas de 48×48: andando (6), atacando (4), morrendo (3). O Inchado usa a linha de ataque (explosão) também ao morrer.
+- para trocar a arte de um zumbi: gere a imagem no Gemini (fundo magenta, 3 linhas, de lado olhando para a direita), baixe e rode `tools/zombie_from_gemini.sh <letra> <altura em px>`. Se o Gemini fizer uma linha a mais, passe quais usar: `tools/zombie_from_gemini.sh T 29 0,2,3`.
