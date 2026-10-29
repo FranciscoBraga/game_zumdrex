@@ -9,20 +9,48 @@ const ROW_IDLE := 1    # parado, de lado
 const ROW_WALK := 4    # andando, de lado
 const ROW_SHOOT := {"pistol": 6, "bow": 9, "rifle": 12, "shotgun": 12}
 const SHOOT_FRAMES := 3
-const ANIM_DIR := "res://assets/Character_animation/monsters_idle/"
+const ANIM_DIR := "res://assets/Character_animation/"
 # zumbi -> pasta/prefixo dos 4 quadros de animação (16x16)
 const ZOMBIE_FRAMES := {
-	"Z": "skeleton1/v1/skeleton_v1_",
-	"R": "skeleton2/v1/skeleton2_v1_",
-	"T": "vampire/v1/vampire_v1_",
-	"K": "skull/v1/skull_v1_",
+	"Z": "monsters_idle/skeleton1/v1/skeleton_v1_",
+	"R": "monsters_idle/skeleton2/v1/skeleton2_v1_",
+	"T": "monsters_idle/vampire/v1/vampire_v1_",
+	"K": "monsters_idle/skull/v1/skull_v1_",
+	"N": "monsters_idle/skeleton1/v2/skeleton_v2_",
+	"C": "monsters_idle/skull/v2/skull_v2_",
+	"G": "monsters_idle/skeleton2/v2/skeleton2_v2_",
+	"U": "monsters_idle/vampire/v2/vampire_v2_",
+	# com super poderes
+	"S": "monsters_idle/skull/v1/skull_v1_",
+	"O": "monsters_idle/skeleton2/v1/skeleton2_v1_",
+	"J": "priests_idle/priest1/v1/priest1_v1_",
+	"Q": "priests_idle/priest3/v1/priest3_v1_",
+	"Y": "monsters_idle/skull/v2/skull_v2_",
+	"F": "priests_idle/priest2/v1/priest2_v1_",
+	"A": "monsters_idle/skeleton1/v2/skeleton_v2_",
+	"I": "monsters_idle/vampire/v1/vampire_v1_",
 }
+
+# tamanho relativo de cada zumbi (16 px -> casa)
+const ZOMBIE_SIZE := {"T": 0.85, "U": 0.9, "N": 0.6, "C": 0.55, "Q": 0.95, "I": 0.95, "S": 0.75, "Y": 0.75}
 
 const ZOMBIE_TINT := {
 	"Z": Color(0.65, 1.0, 0.6),
 	"R": Color(1.0, 0.7, 0.6),
 	"T": Color(0.75, 1.0, 0.7),
 	"K": Color(0.85, 0.7, 1.0),
+	"N": Color(0.9, 0.95, 0.6),
+	"C": Color(0.6, 0.9, 0.75),
+	"G": Color(1.0, 0.85, 0.5),
+	"U": Color(1.0, 0.55, 0.5),
+	"S": Color(0.55, 1.0, 0.35),
+	"O": Color(0.55, 0.7, 1.0),
+	"J": Color(0.8, 0.55, 1.0),
+	"Q": Color(1.0, 0.55, 0.85),
+	"Y": Color(1.0, 0.95, 0.45),
+	"F": Color(0.75, 0.85, 0.5),
+	"A": Color(0.95, 0.9, 0.8),
+	"I": Color(0.6, 0.95, 0.45),
 }
 
 var unit_id := 0
@@ -33,6 +61,8 @@ var hp := 1
 var max_hp := 1
 var selected := false
 var carrying := false
+var is_hidden := false
+var stunned := false
 var sprite: Sprite2D
 var frames: Array = []  # texturas soltas (zumbis)
 var _t := 0.0
@@ -59,7 +89,7 @@ func setup(u: Dictionary, tile_size: float) -> void:
 				frames.append(load(ANIM_DIR + ZOMBIE_FRAMES[type] + str(i) + ".png"))
 			sprite.texture = frames[0]
 			sprite.modulate = ZOMBIE_TINT.get(type, Color.WHITE)
-			s = tile / 16.0 * (0.85 if type == "T" else 0.68)
+			s = tile / 16.0 * ZOMBIE_SIZE.get(type, 0.68)
 		sprite.scale = Vector2(s, s)
 		sprite.position = Vector2(0, -tile * (0.26 if type == "P" else 0.08))
 		add_child(sprite)
@@ -71,6 +101,10 @@ func update_from(u: Dictionary) -> void:
 	hp = u["hp"]
 	max_hp = u["max_hp"]
 	carrying = u.has("carrying")
+	is_hidden = u.get("hidden", false)
+	stunned = u.get("stun", 0) > 0
+	if sprite:
+		sprite.visible = not is_hidden
 	queue_redraw()
 
 
@@ -133,8 +167,17 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var r := tile * 0.5
+	if is_hidden:  # Rastejante escondido: só uma mancha escura que se mexe
+		var w := 1.0 + sin(_t * 3.0) * 0.08
+		draw_circle(Vector2(0, r * 0.3), r * 0.42 * w, Color(0.05, 0.08, 0.05, 0.55))
+		draw_circle(Vector2(r * 0.15, r * 0.2), r * 0.06, Color(0.9, 0.2, 0.2, 0.5 + 0.4 * sin(_t * 5.0)))
+		return
 	# sombra
 	draw_circle(Vector2(0, r * 0.62), r * 0.38, Color(0, 0, 0, 0.35))
+	if stunned:  # estrelinhas de tontura
+		for i in 3:
+			var a := _t * 3.0 + i * TAU / 3.0
+			draw_circle(Vector2(cos(a) * r * 0.35, -r * 0.75 + sin(a) * r * 0.1), r * 0.07, Color(1, 0.95, 0.3))
 	if selected:
 		draw_arc(Vector2(0, r * 0.55), r * 0.6, 0, TAU, 32, Color(1, 0.9, 0.2), 3.0)
 	var bob := sin(_t * 4.0) * 2.0

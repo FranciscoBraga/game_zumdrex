@@ -41,6 +41,13 @@ var tracer_from := Vector2.ZERO
 var tracer_to := Vector2.ZERO
 var tracer_alpha := 0.0
 var tracer_arrow := false
+var fx: Array = []  # efeitos rápidos: {kind, a, b, t, color, r}
+
+# cor do ataque de longe de cada zumbi
+const RANGED_COLOR := {
+	"S": Color(0.45, 1.0, 0.3), "O": Color(1.0, 0.9, 0.4), "J": Color(0.75, 0.35, 1.0),
+	"Q": Color(1.0, 0.4, 0.75), "F": Color(1.0, 0.8, 0.3), "A": Color(0.85, 0.7, 0.5),
+}
 var ui := {}
 var font: Font
 
@@ -311,6 +318,8 @@ func _do_shoot(dir: Vector2i) -> void:
 	for h in res["hits"]:
 		if views.has(h["id"]):
 			views[h["id"]].flash()
+	for ev in res.get("explosions", []):
+		await _play_fx_event(ev)
 	var tw := create_tween()
 	tw.tween_property(self, "tracer_alpha", 0.0, 0.3)
 	await tw.finished
@@ -326,12 +335,21 @@ func _zombie_phase() -> void:
 	if board.status == "playing":
 		await get_tree().create_timer(0.12).timeout
 		for ev in board.run_zombie_turn():
-			var v = views.get(ev["id"])
+			if await _play_fx_event(ev):
+				continue
+			var v = views.get(ev.get("id", -1))
 			if v == null:
 				continue
 			if ev["type"] == "move":
 				v.face(ev["to"].x - ev["from"].x)
 				await _tween_pos(v, grid_to_px(ev["to"]))
+			elif ev["type"] == "promote" or ev["type"] == "reveal":
+				# troca o visual (peão virou tanque / rastejante apareceu)
+				v.queue_free()
+				views.erase(ev["id"])
+				_sync_views()
+				if views.has(ev["id"]):
+					views[ev["id"]].flash()
 			elif ev["type"] == "attack":
 				var target_px := grid_to_px(ev["at"])
 				v.face(int(signf(target_px.x - v.position.x)))
@@ -353,6 +371,83 @@ func _zombie_phase() -> void:
 	queue_redraw()
 	if board.status != "playing":
 		_show_end()
+
+
+# Efeitos dos poderes dos zumbis. Devolve true se tratou o evento.
+func _play_fx_event(ev: Dictionary) -> bool:
+	match ev["type"]:
+		"aim":
+			var v = views.get(ev["id"])
+			if v:
+				v.face(int(signf(ev["to"].x - ev["from"].x)))
+				v.flash()
+			await get_tree().create_timer(0.2).timeout
+			return true
+		"shoot":
+			var v = views.get(ev["id"])
+			var a := grid_to_px(ev["from"])
+			var b := grid_to_px(ev["to"])
+			if v:
+				v.face(int(signf(b.x - a.x)))
+			fx.append({"kind": "shot", "a": a, "b": b, "t": 1.0,
+				"color": RANGED_COLOR.get(ev["kind"], Color.WHITE)})
+			await get_tree().create_timer(0.25).timeout
+			for id in ev["targets"]:
+				if views.has(id):
+					views[id].flash()
+			if ev.has("acid"):
+				fx.append({"kind": "splash", "a": grid_to_px(ev["acid"]), "t": 1.0, "color": RANGED_COLOR["S"]})
+			_sync_views()
+			return true
+		"scream":
+			fx.append({"kind": "ring", "a": grid_to_px(ev["at"]), "t": 1.0, "r": (ev["range"] + 0.5) * tile,
+				"color": Color(1.0, 0.95, 0.4)})
+			for s in board.survivors():
+				if views.has(s["id"]):
+					views[s["id"]].flash()
+			await get_tree().create_timer(0.35).timeout
+			_sync_views()
+			return true
+		"explode":
+			fx.append({"kind": "boom", "a": grid_to_px(ev["at"]), "t": 1.0, "color": Color(1.0, 0.55, 0.15)})
+			await get_tree().create_timer(0.3).timeout
+			_sync_views()
+			return true
+		"revive":
+			fx.append({"kind": "splash", "a": grid_to_px(ev["at"]), "t": 1.0, "color": RANGED_COLOR["J"]})
+			_sync_views()
+			if views.has(ev["new_id"]):
+				views[ev["new_id"]].flash()
+			await get_tree().create_timer(0.3).timeout
+			return true
+		"acid":
+			fx.append({"kind": "splash", "a": grid_to_px(ev["at"]), "t": 1.0, "color": RANGED_COLOR["S"]})
+			if views.has(ev["target"]):
+				views[ev["target"]].flash()
+			await get_tree().create_timer(0.2).timeout
+			_sync_views()
+			return true
+	return false
+
+
+func _draw_fx() -> void:
+	for f in fx:
+		var t: float = f["t"]
+		var c: Color = f["color"]
+		match f["kind"]:
+			"shot":  # projétil voando com rastro
+				var tip: Vector2 = f["a"].lerp(f["b"], clampf((1.0 - t) * 1.6, 0.0, 1.0))
+				draw_line(f["a"], tip, Color(c, 0.35 * t), 3.0)
+				draw_circle(tip, tile * 0.1, Color(c, t))
+			"ring":  # onda do grito
+				var rr: float = f["r"] * (1.0 - t * 0.7)
+				draw_arc(f["a"], rr, 0, TAU, 40, Color(c, t), 4.0)
+				draw_arc(f["a"], rr * 0.6, 0, TAU, 32, Color(c, t * 0.6), 3.0)
+			"boom":  # explosão 3x3
+				draw_rect(Rect2(f["a"] - Vector2(tile, tile) * 1.5, Vector2(tile, tile) * 3), Color(c, 0.35 * t))
+				draw_circle(f["a"], tile * (1.5 - t), Color(1, 0.9, 0.4, t))
+			"splash":
+				draw_circle(f["a"], tile * 0.45 * (1.4 - t * 0.4), Color(c, 0.6 * t))
 
 
 func _tween_pos(v: Node2D, to: Vector2) -> void:
@@ -383,7 +478,10 @@ func _sync_views() -> void:
 			views.erase(id)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	for f in fx:
+		f["t"] -= delta * 2.2
+	fx = fx.filter(func(f): return f["t"] > 0.0)
 	queue_redraw()  # mantém as marcações pulsando
 
 
@@ -420,6 +518,7 @@ func _draw() -> void:
 				draw_rect(Rect2(r.position, Vector2(tile, 4)), Color(0.3, 0.95, 0.4, 0.9))
 			_draw_cell_content(p, r)
 	_draw_highlights()
+	_draw_fx()
 	if tracer_alpha > 0.0:
 		if tracer_arrow:  # flecha voando: rastro fino e a ponta andando
 			var tip := tracer_from.lerp(tracer_to, 1.0 - tracer_alpha)
@@ -460,6 +559,10 @@ func _draw_cell_content(p: Vector2i, r: Rect2) -> void:
 				draw_line(Vector2(xx, r.position.y + 6), Vector2(xx, r.end.y - 6), Color(0.35, 0.2, 0.08), 2.0)
 			draw_circle(c, tile * 0.12, Color(0.95, 0.8, 0.2))
 			draw_rect(Rect2(c + Vector2(-tile * 0.03, 0), Vector2(tile * 0.06, tile * 0.12)), Color(0.2, 0.15, 0.05))
+	if board.hazards.has(p):  # poça de ácido do Cuspidor
+		var wob := sin(Time.get_ticks_msec() / 250.0 + p.x) * 0.04
+		draw_circle(c + Vector2(0, tile * 0.1), tile * (0.36 + wob), Color(0.35, 0.85, 0.2, 0.55))
+		draw_circle(c + Vector2(-tile * 0.12, tile * 0.05), tile * 0.06, Color(0.8, 1, 0.6, 0.8))
 	var it: String = board.items.get(p, "")
 	if it != "":
 		var glow := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 300.0)
@@ -484,6 +587,32 @@ func _draw_cell_content(p: Vector2i, r: Rect2) -> void:
 				HORIZONTAL_ALIGNMENT_LEFT, -1, int(maxf(10, tile * 0.16)), Color.WHITE)
 
 
+# Linhas vermelhas: zumbis que estão mirando e vão atirar na próxima rodada.
+func _draw_aims(pulse: float) -> void:
+	for z in board.zombies():
+		if z.has("aim_area"):  # Gritador vai gritar: área em volta
+			for p in board.ranged_threat(z):
+				var ra := Rect2(origin + Vector2(p) * tile, Vector2(tile, tile))
+				draw_rect(ra, Color(1, 0.15, 0.1, 0.12 + 0.12 * pulse))
+				draw_rect(ra.grow(-3), Color(1, 0.3, 0.2, 0.6), false, 2.0)
+		if not z.has("aim"):
+			continue
+		var d: Vector2i = z["aim"]
+		var r: Dictionary = z["ranged"]
+		for i in range(1, int(r["range"]) + 1):
+			var p: Vector2i = z["pos"] + d * i
+			if not board.in_bounds(p) or board.cell(p) != Board.FLOOR:
+				break
+			var rr := Rect2(origin + Vector2(p) * tile, Vector2(tile, tile))
+			draw_rect(rr, Color(1, 0.1, 0.1, 0.15 + 0.15 * pulse))
+			draw_rect(rr.grow(-3), Color(1, 0.2, 0.2, 0.8), false, 2.0)
+			var u: Dictionary = board.unit_at(p)
+			if not u.is_empty() and (u["team"] == "z" or not r.get("pierce", false)):
+				break
+		var a := grid_to_px(z["pos"])
+		draw_line(a, a + Vector2(d) * tile * 0.6, Color(1, 0.2, 0.2, 0.9), 3.0)
+
+
 func _draw_arrow(from: Vector2, to: Vector2, a: float) -> void:
 	var d := (to - from).normalized()
 	var n := Vector2(-d.y, d.x)
@@ -498,6 +627,7 @@ func _draw_highlights() -> void:
 	if busy or board.status != "playing":
 		return
 	var pulse := 0.5 + 0.5 * sin(Time.get_ticks_msec() / 220.0)
+	_draw_aims(pulse)
 	var sel: Dictionary = board.unit_by_id(selected_id)
 	if not sel.is_empty():  # casa da peça selecionada em amarelo
 		var sr := Rect2(origin + Vector2(sel["pos"]) * tile, Vector2(tile, tile))
@@ -528,7 +658,9 @@ func _draw_highlights() -> void:
 		draw_rect(Rect2(origin + Vector2(hover) * tile, Vector2(tile, tile)), Color(1, 1, 1, 0.6), false, 2.0)
 		var hz: Dictionary = board.unit_at(hover)
 		if not hz.is_empty() and hz["team"] == "z":
-			for d in board.dirs_for(hz["moves"]):
+			for p in board.ranged_threat(hz):  # alcance do ataque de longe
+				draw_rect(Rect2(origin + Vector2(p) * tile, Vector2(tile, tile)).grow(-6), Color(0.85, 0.2, 1.0, 0.18))
+			for d in board.attack_dirs(hz):
 				var p: Vector2i = hover + d
 				if board.in_bounds(p):
 					draw_rect(Rect2(origin + Vector2(p) * tile, Vector2(tile, tile)).grow(-10), Color(1, 0.4, 0.1, 0.5), false, 2.0)
@@ -670,10 +802,31 @@ func _show_hover_info() -> void:
 	var u: Dictionary = board.unit_at(hover)
 	if u.is_empty() or u["team"] != "z":
 		return
-	var how := {"king": "1 casa em qualquer direção", "wazir": "1 casa reta", "knight": "em L"}
+	if u.get("hidden", false):
+		ui["hint"].text = "Tem alguma coisa escondida ali... chegue a 2 casas e ela acorda."
+		return
+	var how := {"king": "1 casa em qualquer direção", "wazir": "1 casa reta", "knight": "em L",
+		"ferz": "1 casa na diagonal", "pawn": "1 casa para baixo e morde na diagonal da frente",
+		"rook2": "até 2 casas em linha reta", "rook3": "até 3 casas em linha reta (investida, empurra)"}
 	var extra := " (age a cada %d rodadas)" % u["every"] if u["every"] > 1 else ""
-	ui["hint"].text = "%s — vida %d/%d — anda %s%s. Casas laranja = onde ele morde." % [
-		u["name"], u["hp"], u["max_hp"], how[u["moves"]], extra]
+	var walk: String = how.get(u["moves"], "")
+	if walk == "":
+		var names := {"rook": "em linha reta", "bishop": "na diagonal", "queen": "em qualquer linha"}
+		for k in names:
+			if u["moves"].begins_with(k):
+				walk = "até %d casas %s" % [board.move_range(u["moves"]), names[k]]
+	var txt := "%s — vida %d/%d — anda %s%s. Laranja = mordida." % [u["name"], u["hp"], u["max_hp"], walk, extra]
+	var r: Dictionary = u.get("ranged", {})
+	if not r.is_empty():
+		txt += " Roxo = ataque de longe (%d casas%s)." % [r["range"], ", atravessa" if r.get("pierce", false) else ""]
+	var powers := {"acid": "deixa ácido no chão", "drops": "larga munição ao morrer",
+		"revive": "levanta zumbis abatidos", "aura": "zumbis perto dela agem 2 vezes",
+		"calls": "o grito chama os zumbis", "coward": "foge se você chega perto",
+		"explodes": "explode em volta (até quando morre)"}
+	for k in powers:
+		if u.has(k):
+			txt += " Poder: " + powers[k] + "."
+	ui["hint"].text = txt
 
 
 func _flash_hint(msg: String) -> void:
